@@ -1,12 +1,9 @@
-﻿using Alpaca.Markets;
+﻿namespace AlpacaDashboard;
 
-namespace AlpacaDashboard
+/// <summary>
+/// This Event arg class is used by all scanners
+/// </summary>
+public class ScannerListUpdatedEventArgs : EventArgs
 {
-    /// <summary>
-    /// This Event arg class is used by all scanners
-    /// </summary>
-    public class ScannerListUpdatedEventArgs : EventArgs
-    {
-        public Dictionary<string, ISnapshot> ListOfsymbolAndSnapshot { get; set; }
-    }
+    public Dictionary<string, ISnapshot> ListOfsymbolAndSnapshot { get; set; } = new();
 }
