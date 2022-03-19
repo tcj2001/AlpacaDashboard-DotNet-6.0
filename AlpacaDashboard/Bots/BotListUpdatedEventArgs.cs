@@ -1,9 +1,6 @@
-﻿using Alpaca.Markets;
+﻿namespace AlpacaDashboard;
 
-namespace AlpacaDashboard
+public class BotListUpdatedEventArgs : EventArgs
 {
-    public class BotListUpdatedEventArgs : EventArgs
-    {
-        public Dictionary<string, IPosition> ListOfsymbolAndPosition { get; set; }
-    }
+    public Dictionary<string, IPosition> ListOfsymbolAndPosition { get; set; } = new();
 }
