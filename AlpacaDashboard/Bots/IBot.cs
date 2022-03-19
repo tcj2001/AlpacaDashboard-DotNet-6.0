@@ -42,6 +42,5 @@ public interface IBot
 
     //End Bot
     void End(CancellationTokenSource token);
-
-    }
+    
 }
