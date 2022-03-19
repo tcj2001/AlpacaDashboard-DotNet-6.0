@@ -1,7 +1,6 @@
-﻿namespace AlpacaDashboard
+﻿namespace AlpacaDashboard;
+
+public class StockUpdatedEventArgs : EventArgs
 {
-    public class StockUpdatedEventArgs : EventArgs
-    {
-        public IEnumerable<IStock>? Stocks { get; set; }
-    }
+    public IEnumerable<IStock>? Stocks { get; set; }
 }
