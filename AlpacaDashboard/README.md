@@ -40,4 +40,5 @@ Scanner class should implement this Interface
 ![Imgur](https://i.imgur.com/Peouweo.png)
 
 Bot classes should implement this interface
-[Imgur](https://i.imgur.com/HMxY7j7.png)
+![Imgur](https://i.imgur.com/HMxY7j7.png)
+
