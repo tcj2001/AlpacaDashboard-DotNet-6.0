@@ -307,7 +307,7 @@
             this.tabControlBots.SelectedIndex = 0;
             this.tabControlBots.Size = new System.Drawing.Size(716, 495);
             this.tabControlBots.TabIndex = 1;
-            this.tabControlBots.Selected += new System.Windows.Forms.TabControlEventHandler(this.tabControlBots_Selected);
+            this.tabControlBots.Selected += new System.Windows.Forms.TabControlEventHandler(this.TabControlBots_Selected);
             // 
             // tabControlScanners
             // 
@@ -317,7 +317,7 @@
             this.tabControlScanners.SelectedIndex = 0;
             this.tabControlScanners.Size = new System.Drawing.Size(716, 495);
             this.tabControlScanners.TabIndex = 1;
-            this.tabControlScanners.Selected += new System.Windows.Forms.TabControlEventHandler(this.tabControlScanners_Selected);
+            this.tabControlScanners.Selected += new System.Windows.Forms.TabControlEventHandler(this.TabControlScanners_Selected);
             // 
             // label4
             // 
@@ -406,7 +406,7 @@
             this.checkBoxLivePaper.TabIndex = 16;
             this.checkBoxLivePaper.Text = "Live";
             this.checkBoxLivePaper.UseVisualStyleBackColor = true;
-            this.checkBoxLivePaper.CheckedChanged += new System.EventHandler(this.checkBoxLivePaper_CheckedChanged);
+            this.checkBoxLivePaper.CheckedChanged += new System.EventHandler(this.CheckBoxLivePaper_CheckedChanged);
             // 
             // panelOrder
             // 
@@ -459,7 +459,7 @@
             this.labelAskPrice.Size = new System.Drawing.Size(28, 15);
             this.labelAskPrice.TabIndex = 34;
             this.labelAskPrice.Text = "0.00";
-            this.labelAskPrice.Click += new System.EventHandler(this.labelAskPrice_Click);
+            this.labelAskPrice.Click += new System.EventHandler(this.LabelAskPrice_Click);
             // 
             // labelAskPriceLabel
             // 
@@ -487,7 +487,7 @@
             this.labelBidPrice.Size = new System.Drawing.Size(28, 15);
             this.labelBidPrice.TabIndex = 31;
             this.labelBidPrice.Text = "0.00";
-            this.labelBidPrice.Click += new System.EventHandler(this.labelBidPrice_Click);
+            this.labelBidPrice.Click += new System.EventHandler(this.LabelBidPrice_Click);
             // 
             // label8
             // 
@@ -506,7 +506,7 @@
             this.labelMarketPrice.Size = new System.Drawing.Size(28, 15);
             this.labelMarketPrice.TabIndex = 14;
             this.labelMarketPrice.Text = "0.00";
-            this.labelMarketPrice.Click += new System.EventHandler(this.labelMarketPrice_Click);
+            this.labelMarketPrice.Click += new System.EventHandler(this.LabelMarketPrice_Click);
             // 
             // labelSym
             // 
@@ -599,7 +599,7 @@
             this.textBoxLimitPrice.Size = new System.Drawing.Size(75, 23);
             this.textBoxLimitPrice.TabIndex = 42;
             this.textBoxLimitPrice.Visible = false;
-            this.textBoxLimitPrice.TextChanged += new System.EventHandler(this.textBoxLimitPrice_TextChanged);
+            this.textBoxLimitPrice.TextChanged += new System.EventHandler(this.TextBoxLimitPrice_TextChanged);
             this.textBoxLimitPrice.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.textBoxLimitPrice_KeyPress);
             // 
             // textBoxStopPrice
@@ -656,7 +656,7 @@
             this.comboBoxMarketOrLimit.Name = "comboBoxMarketOrLimit";
             this.comboBoxMarketOrLimit.Size = new System.Drawing.Size(80, 23);
             this.comboBoxMarketOrLimit.TabIndex = 16;
-            this.comboBoxMarketOrLimit.SelectedIndexChanged += new System.EventHandler(this.comboBoxMarketOrLimit_SelectedIndexChanged);
+            this.comboBoxMarketOrLimit.SelectedIndexChanged += new System.EventHandler(this.ComboBoxMarketOrLimit_SelectedIndexChanged);
             // 
             // labelShareOrAmount
             // 
@@ -699,7 +699,7 @@
             this.radioButtonShares.TabStop = true;
             this.radioButtonShares.Text = "Shares";
             this.radioButtonShares.UseVisualStyleBackColor = true;
-            this.radioButtonShares.Click += new System.EventHandler(this.radioButtonShares_Click);
+            this.radioButtonShares.Click += new System.EventHandler(this.RadioButtonShares_Click);
             // 
             // textBoxQuantity
             // 
@@ -708,7 +708,7 @@
             this.textBoxQuantity.Size = new System.Drawing.Size(75, 23);
             this.textBoxQuantity.TabIndex = 22;
             this.textBoxQuantity.TextChanged += new System.EventHandler(this.textBoxQuantity_TextChanged);
-            this.textBoxQuantity.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.textBoxQuantity_KeyPress);
+            this.textBoxQuantity.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.TextBoxQuantity_KeyPress);
             // 
             // groupBoxBuyOrSell
             // 
@@ -804,7 +804,7 @@
             this.toolStripMenuItemStart.Name = "toolStripMenuItemStart";
             this.toolStripMenuItemStart.Size = new System.Drawing.Size(180, 22);
             this.toolStripMenuItemStart.Text = "Start";
-            this.toolStripMenuItemStart.Click += new System.EventHandler(this.toolStripMenuItemStart_Click);
+            this.toolStripMenuItemStart.Click += new System.EventHandler(this.ToolStripMenuItemStart_Click);
             // 
             // toolStripMenuItemStop
             // 

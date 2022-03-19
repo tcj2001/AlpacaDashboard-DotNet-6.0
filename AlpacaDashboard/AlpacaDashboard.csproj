@@ -9,6 +9,14 @@
     <UserSecretsId>7103e6b2-f428-43d7-9209-d799964ff27b</UserSecretsId>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Remove="appsettings.json" />
   </ItemGroup>
@@ -23,7 +31,7 @@
     <PackageReference Include="Alpaca.Markets" Version="5.2.11" />
     <PackageReference Include="Alpaca.Markets.Extensions" Version="5.2.6" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
-    <PackageReference Include="OoplesFinance.StockIndicators" Version="1.0.40" />
+    <PackageReference Include="OoplesFinance.StockIndicators" Version="1.0.42" />
     <PackageReference Include="Serilog.AspNetCore" Version="5.0.0" />
     <PackageReference Include="Serilog.Expressions" Version="3.3.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="3.3.0" />
