@@ -44,6 +44,5 @@ namespace AlpacaDashboard
         //End Bot
         void End(CancellationTokenSource token);
 
-
     }
 }
