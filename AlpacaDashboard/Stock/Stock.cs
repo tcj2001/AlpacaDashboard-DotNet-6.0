@@ -71,7 +71,7 @@ public class Stock : IStock
         {
             if (broker.Environment == "Live")
             {
-                IStock stock = Stock.LiveStockObjects.GetStock(symbol);
+                IStock? stock = Stock.LiveStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
                     stock = new Stock(broker, asset, symbol, watchListCategory);
@@ -79,7 +79,7 @@ public class Stock : IStock
             }
             if (broker.Environment == "Paper")
             {
-                IStock stock = Stock.PaperStockObjects.GetStock(symbol);
+                IStock? stock = Stock.PaperStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
                     stock = new Stock(broker, asset, symbol, watchListCategory);
@@ -89,9 +89,24 @@ public class Stock : IStock
             if (broker.subscribed)
             {
 
+                if (asset.Class == AssetClass.Crypto)
+                {
+                    tradeSubscription = Broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbol);
+                    tradeSubscription.Received += CryptoTradeSubscription_Received;
+                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
+
+                    quoteSubscription = Broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbol);
+                    quoteSubscription.Received += CryptoQuoteSubscription_Received;
+                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
+
+                    barSubscription = Broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbol);
+                    barSubscription.Received += CryptoMinAggrSubscription_Received;
+                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
+                }
+
                 if (broker.Environment == "Live")
                 {
-                    IStock stock = LiveStockObjects.GetStock(symbol);
+                    IStock? stock = LiveStockObjects.GetStock(symbol);
                     if (asset.Class == AssetClass.UsEquity)
                     {
                         tradeSubscription = broker.alpacaDataStreamingClient.GetTradeSubscription(symbol);
@@ -107,26 +122,12 @@ public class Stock : IStock
                         await broker.alpacaDataStreamingClient.SubscribeAsync(barSubscription);
                     }
 
-                    if (asset.Class == AssetClass.Crypto)
-                    {
-                        tradeSubscription = broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbol);
-                        tradeSubscription.Received += CryptoLiveTradeSubscription_Received;
-                        await broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
-
-                        quoteSubscription = broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbol);
-                        quoteSubscription.Received += CryptoLiveQuoteSubscription_Received;
-                        await broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
-
-                        barSubscription = broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbol);
-                        barSubscription.Received += CryptoLiveMinAggrSubscription_Received;
-                        await broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
-                    }
                     if (stock != null)
                         stock.subscribed = true;
                 }
                 if (broker.Environment == "Paper")
                 {
-                    IStock stock = PaperStockObjects.GetStock(symbol);
+                    IStock? stock = PaperStockObjects.GetStock(symbol);
                     if (asset.Class == AssetClass.UsEquity)
                     {
                         tradeSubscription = broker.alpacaDataStreamingClient.GetTradeSubscription(symbol);
@@ -142,20 +143,6 @@ public class Stock : IStock
                         await broker.alpacaDataStreamingClient.SubscribeAsync(barSubscription);
                     }
 
-                    if (asset.Class == AssetClass.Crypto)
-                    {
-                        tradeSubscription = broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbol);
-                        tradeSubscription.Received += CryptoPaperTradeSubscription_Received;
-                        await broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
-
-                        quoteSubscription = broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbol);
-                        quoteSubscription.Received += CryptoPaperQuoteSubscription_Received;
-                        await broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
-
-                        barSubscription = broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbol);
-                        barSubscription.Received += CryptoPaperMinAggrSubscription_Received;
-                        await broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
-                    }
                     if (stock != null)
                         stock.subscribed = true;
                 }
@@ -180,7 +167,7 @@ public class Stock : IStock
             IAsset asset = await broker.GetAsset(symbol);
             if (Broker.Environment == "Live")
             {
-                IStock stock = LiveStockObjects.GetStock(symbol);
+                IStock? stock = LiveStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
                     stock = new Stock(broker, asset, symbol, watchListCategory);
@@ -188,7 +175,7 @@ public class Stock : IStock
             }
             if (Broker.Environment == "Paper")
             {
-                IStock stock = PaperStockObjects.GetStock(symbol);
+                IStock? stock = PaperStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
                     stock = new Stock(broker, asset, symbol, watchListCategory);
@@ -198,6 +185,27 @@ public class Stock : IStock
 
         if (broker.subscribed)
         {
+
+            try
+            {
+                IEnumerable<IStock> cryptoStocks = LiveStockObjects.GetStocks(AssetClass.Crypto, symbols);
+                tradeSubscription = Broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbols);
+                tradeSubscription.Received += CryptoTradeSubscription_Received;
+                await Broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+
+                quoteSubscription = Broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbols);
+                quoteSubscription.Received += CryptoQuoteSubscription_Received;
+                await Broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+
+                barSubscription = Broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbols);
+                barSubscription.Received += CryptoMinAggrSubscription_Received;
+                await Broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+                foreach (Stock stock in cryptoStocks)
+                {
+                    stock.subscribed = true;
+                }
+            }
+            catch (Exception ex) { Console.WriteLine(ex.Message); }
 
             if (broker.Environment == "Live")
             {
@@ -216,28 +224,6 @@ public class Stock : IStock
                     barSubscription.Received += UsEquityLiveMinAggrSubscription_Received;
                     await broker.alpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
                     foreach (Stock stock in usEquityStocks)
-                    {
-                        stock.subscribed = true;
-                    }
-                }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
-
-
-                try
-                {
-                    IEnumerable<IStock> cryptoStocks = LiveStockObjects.GetStocks(AssetClass.Crypto, symbols);
-                    tradeSubscription = broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbols);
-                    tradeSubscription.Received += CryptoLiveTradeSubscription_Received;
-                    await broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
-
-                    quoteSubscription = broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbols);
-                    quoteSubscription.Received += CryptoLiveQuoteSubscription_Received;
-                    await broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
-
-                    barSubscription = broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbols);
-                    barSubscription.Received += CryptoLiveMinAggrSubscription_Received;
-                    await broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
-                    foreach (Stock stock in cryptoStocks)
                     {
                         stock.subscribed = true;
                     }
@@ -267,27 +253,6 @@ public class Stock : IStock
                     }
                 }
                 catch (Exception ex) { Console.WriteLine(ex.Message); }
-
-                try
-                {
-                    IEnumerable<IStock> cryptoStocks = PaperStockObjects.GetStocks(AssetClass.Crypto, symbols);
-                    tradeSubscription = broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbols);
-                    tradeSubscription.Received += CryptoPaperTradeSubscription_Received;
-                    await broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
-
-                    quoteSubscription = broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbols);
-                    quoteSubscription.Received += CryptoPaperQuoteSubscription_Received;
-                    await broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
-
-                    barSubscription = broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbols);
-                    barSubscription.Received += CryptoPaperMinAggrSubscription_Received;
-                    await broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
-                    foreach (Stock stock in cryptoStocks)
-                    {
-                        stock.subscribed = true;
-                    }
-                }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
             }
         }
     }
@@ -304,25 +269,23 @@ public class Stock : IStock
         {
             IAlpacaDataSubscription<IBar>? minAggrSubscription = null;
 
+            //only one environment 
+            //Minute aggregated data for all crypto symbol
+            minAggrSubscription = Broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription("*");
+            minAggrSubscription.Received += CryptoMinAggrSubscription_Received;
+            await Broker.alpacaCryptoStreamingClient.SubscribeAsync(minAggrSubscription).ConfigureAwait(false);
+
             //live
             //Minute aggregated data for all usequity symbol
             minAggrSubscription = liveBroker.alpacaDataStreamingClient.GetMinuteBarSubscription("*");
             minAggrSubscription.Received += UsEquityLiveMinAggrSubscription_Received;
             await liveBroker.alpacaDataStreamingClient.SubscribeAsync(minAggrSubscription).ConfigureAwait(false);
-            //Minute aggregated data for all crypto symbol
-            minAggrSubscription = liveBroker.alpacaCryptoStreamingClient.GetMinuteBarSubscription("*");
-            minAggrSubscription.Received += CryptoLiveMinAggrSubscription_Received;
-            await liveBroker.alpacaCryptoStreamingClient.SubscribeAsync(minAggrSubscription).ConfigureAwait(false);
 
             //paper
             //Minute aggregated data for usequity symbol
             minAggrSubscription = paperBroker.alpacaDataStreamingClient.GetMinuteBarSubscription("*");
             minAggrSubscription.Received += UsEquityPaperMinAggrSubscription_Received;
             await paperBroker.alpacaDataStreamingClient.SubscribeAsync(minAggrSubscription).ConfigureAwait(false);
-            //Minute aggregated data for crypto symbol
-            minAggrSubscription = paperBroker.alpacaCryptoStreamingClient.GetMinuteBarSubscription("*");
-            minAggrSubscription.Received += CryptoPaperMinAggrSubscription_Received;
-            await paperBroker.alpacaCryptoStreamingClient.SubscribeAsync(minAggrSubscription).ConfigureAwait(false);
 
             MinutesBarSubscribed = true;
         }
@@ -413,7 +376,7 @@ public class Stock : IStock
     /// <param name="obj"></param>
     static private void UsEquityLiveMinAggrSubscription_Received(IBar obj)
     {
-        IStock stock = LiveStockObjects.GetStock(obj.Symbol);
+        IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.Open = obj.Open;
@@ -433,7 +396,7 @@ public class Stock : IStock
     /// <param name="obj"></param>
     static private void UsEquityLiveTradeSubscription_Received(ITrade obj)
     {
-        IStock stock = LiveStockObjects.GetStock(obj.Symbol);
+        IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.Last = obj.Price;
@@ -447,7 +410,7 @@ public class Stock : IStock
     /// <param name="obj"></param>
     static private void UsEquityLiveQuoteSubscription_Received(IQuote obj)
     {
-        IStock stock = LiveStockObjects.GetStock(obj.Symbol);
+        IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.AskExchange = obj.AskExchange;
@@ -465,7 +428,7 @@ public class Stock : IStock
     /// <param name="obj"></param>
     static private void UsEquityPaperMinAggrSubscription_Received(IBar obj)
     {
-        IStock stock = PaperStockObjects.GetStock(obj.Symbol);
+        IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.Open = obj.Open;
@@ -485,7 +448,7 @@ public class Stock : IStock
     /// <param name="obj"></param>
     static private void UsEquityPaperTradeSubscription_Received(ITrade obj)
     {
-        IStock stock = PaperStockObjects.GetStock(obj.Symbol);
+        IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.Last = obj.Price;
@@ -499,7 +462,7 @@ public class Stock : IStock
     /// <param name="obj"></param>
     static private void UsEquityPaperQuoteSubscription_Received(IQuote obj)
     {
-        IStock stock = PaperStockObjects.GetStock(obj.Symbol);
+        IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.AskExchange = obj.AskExchange;
@@ -514,12 +477,13 @@ public class Stock : IStock
 
     #region crypto subscription receiving methods
     /// <summary>
-    /// event handler to minute crypto live aggregation data from a streaming client
+    /// event handler to crypto paper minute aggregation data from a streaming client
     /// </summary>
     /// <param name="obj"></param>
-    static private void CryptoLiveMinAggrSubscription_Received(IBar obj)
+    static private void CryptoMinAggrSubscription_Received(IBar obj)
     {
-        IStock stock = LiveStockObjects.GetStock(obj.Symbol);
+        IStock? stock = null;
+        stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.Open = obj.Open;
@@ -530,48 +494,7 @@ public class Stock : IStock
             stock.Volume = obj.Volume;
             stock.Last = obj.Close;
         }
-    }
-
-    /// <summary>
-    /// event handler to receive crypto live trade related data in the market
-    /// this get the last price of asset
-    /// </summary>
-    /// <param name="obj"></param>
-    static private void CryptoLiveTradeSubscription_Received(ITrade obj)
-    {
-        IStock stock = LiveStockObjects.GetStock(obj.Symbol);
-        if (stock != null)
-        {
-            stock.Last = obj.Price;
-        }
-    }
-
-    /// <summary>
-    /// event handler to receive crypto live quote related data in the market
-    /// this get the last price of asset
-    /// </summary>
-    /// <param name="obj"></param>
-    static private void CryptoLiveQuoteSubscription_Received(IQuote obj)
-    {
-        IStock stock = LiveStockObjects.GetStock(obj.Symbol);
-        if (stock != null)
-        {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
-        }
-    }
-
-    /// <summary>
-    /// event handler to crypto paper minute aggregation data from a streaming client
-    /// </summary>
-    /// <param name="obj"></param>
-    static private void CryptoPaperMinAggrSubscription_Received(IBar obj)
-    {
-        IStock stock = PaperStockObjects.GetStock(obj.Symbol);
+        stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.Open = obj.Open;
@@ -589,9 +512,15 @@ public class Stock : IStock
     /// this get the last price of asset
     /// </summary>
     /// <param name="obj"></param>
-    static private void CryptoPaperTradeSubscription_Received(ITrade obj)
+    static private void CryptoTradeSubscription_Received(ITrade obj)
     {
-        IStock stock = PaperStockObjects.GetStock(obj.Symbol);
+        IStock? stock = null;
+        stock = PaperStockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+        {
+            stock.Last = obj.Price;
+        }
+        stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.Last = obj.Price;
@@ -603,9 +532,20 @@ public class Stock : IStock
     /// this get the last price of asset
     /// </summary>
     /// <param name="obj"></param>
-    static private void CryptoPaperQuoteSubscription_Received(IQuote obj)
+    static private void CryptoQuoteSubscription_Received(IQuote obj)
     {
-        IStock stock = PaperStockObjects.GetStock(obj.Symbol);
+        IStock? stock = null;
+        stock = PaperStockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+        {
+            stock.AskExchange = obj.AskExchange;
+            stock.AskSize = obj.AskSize;
+            stock.AskPrice = obj.AskPrice;
+            stock.BidExchange = obj.BidExchange;
+            stock.BidSize = obj.BidSize;
+            stock.BidPrice = obj.BidPrice;
+        }
+        stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
             stock.AskExchange = obj.AskExchange;

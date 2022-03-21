@@ -20,9 +20,9 @@ public class StockList : IEnumerable<IStock>
     /// </summary>
     /// <param name="symbol"></param>
     /// <returns></returns>
-    public IStock GetStock(string symbol)
+    public IStock? GetStock(string symbol)
     {
-        return stocks.ToList().Where(x => x.Asset.Symbol == symbol).First();
+        return stocks.ToList().Where(x => x.Asset.Symbol == symbol).FirstOrDefault(); 
     }
 
     /// <summary>

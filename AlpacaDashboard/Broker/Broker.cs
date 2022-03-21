@@ -20,11 +20,7 @@ public class Broker : IDisposable
     public IAlpacaTradingClient alpacaTradingClient { get; set; } = default!;
 
     public IAlpacaDataClient alpacaDataClient { get; set; } = default!;
-    public IAlpacaCryptoDataClient alpacaCryptoDataClient { get; set; } = default!;
-
     public IAlpacaDataStreamingClient alpacaDataStreamingClient { get; set; } = default!;
-    public IAlpacaCryptoStreamingClient alpacaCryptoStreamingClient { get; set; } = default!;
-
     public IAlpacaStreamingClient alpacaStreamingClient { get; set; } = default!;
 
     private SecretKey secretKey;
@@ -39,7 +35,12 @@ public class Broker : IDisposable
     private CancellationToken token;
     public string Environment { get; set; }
 
-    public CryptoExchange SelectedCryptoExchange { get; set;} 
+    public CryptoExchange SelectedCryptoExchange { get; set;}
+
+    static public IAlpacaCryptoDataClient alpacaCryptoDataClient { get; set; } = default!;
+    static public IAlpacaCryptoStreamingClient alpacaCryptoStreamingClient { get; set; } = default!;
+    static bool CryptoConnected = false;
+    static string CryptoConnectedEnvironment = "";
 
     #endregion
 
@@ -74,13 +75,27 @@ public class Broker : IDisposable
         {
             alpacaTradingClient = AlpacaEnvironment.Live.GetAlpacaTradingClient(secretKey);
             alpacaDataClient = AlpacaEnvironment.Live.GetAlpacaDataClient(secretKey);
-            alpacaCryptoDataClient = AlpacaEnvironment.Live.GetAlpacaCryptoDataClient(secretKey);
+
+            //connect only in one environment
+            if (!CryptoConnected)
+            {
+                alpacaCryptoDataClient = AlpacaEnvironment.Live.GetAlpacaCryptoDataClient(secretKey);
+                CryptoConnectedEnvironment = Environment;
+                CryptoConnected = true;
+            }
         }
         if (Environment == "Paper")
         {
             alpacaTradingClient = AlpacaEnvironment.Paper.GetAlpacaTradingClient(secretKey);
             alpacaDataClient = AlpacaEnvironment.Paper.GetAlpacaDataClient(secretKey);
-            alpacaCryptoDataClient = AlpacaEnvironment.Paper.GetAlpacaCryptoDataClient(secretKey);
+
+            //connect only in one environment
+            if (!CryptoConnected)
+            {
+                alpacaCryptoDataClient = AlpacaEnvironment.Paper.GetAlpacaCryptoDataClient(secretKey);
+                CryptoConnectedEnvironment = Environment;
+                CryptoConnected = true;
+            }
         }
 
         //streaming client
@@ -92,8 +107,11 @@ public class Broker : IDisposable
                 alpacaStreamingClient = AlpacaEnvironment.Live.GetAlpacaStreamingClient(secretKey).WithReconnect();
 
                 // Connect to Alpaca's websocket and listen for price updates.
-                alpacaDataStreamingClient = AlpacaEnvironment.Live.GetAlpacaDataStreamingClient(secretKey).WithReconnect(); ;
-                alpacaCryptoStreamingClient = AlpacaEnvironment.Live.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
+                alpacaDataStreamingClient = AlpacaEnvironment.Live.GetAlpacaDataStreamingClient(secretKey).WithReconnect();
+
+                //connect only in one environment
+                if (CryptoConnectedEnvironment == Environment)
+                    alpacaCryptoStreamingClient = AlpacaEnvironment.Live.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
             }
             if (Environment == "Paper")
             {
@@ -102,7 +120,10 @@ public class Broker : IDisposable
 
                 // Connect to Alpaca's websocket and listen for price updates.
                 alpacaDataStreamingClient = AlpacaEnvironment.Paper.GetAlpacaDataStreamingClient(secretKey).WithReconnect();
-                alpacaCryptoStreamingClient = AlpacaEnvironment.Paper.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
+
+                //connect only in one environment
+                if (CryptoConnectedEnvironment == Environment)
+                    alpacaCryptoStreamingClient = AlpacaEnvironment.Paper.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
             }
 
             //Streaming client event
@@ -124,7 +145,7 @@ public class Broker : IDisposable
             alpacaCryptoStreamingClient.SocketClosed += AlpacaCryptoStreamingClient_SocketClosed;
         }
 
-        GetMarketOpenClose().GetAwaiter().GetResult();
+        //GetMarketOpenClose().GetAwaiter().GetResult();
     }
 
     #endregion
@@ -141,8 +162,12 @@ public class Broker : IDisposable
             //connect
             await alpacaStreamingClient.ConnectAndAuthenticateAsync();
             await alpacaDataStreamingClient.ConnectAndAuthenticateAsync();
-            await alpacaCryptoStreamingClient.ConnectAndAuthenticateAsync();
 
+            //connect only in one environment
+            if (CryptoConnectedEnvironment == Environment)
+            {
+                await alpacaCryptoStreamingClient.ConnectAndAuthenticateAsync();
+            }
         }
     }
     #endregion
