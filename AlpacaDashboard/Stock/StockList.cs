@@ -22,7 +22,11 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IStock? GetStock(string symbol)
     {
-        return stocks.ToList().Where(x => x.Asset.Symbol == symbol).FirstOrDefault(); 
+        try
+        {
+            return stocks.ToList().Where(x => x.Asset.Symbol == symbol).FirstOrDefault();
+        }
+        catch { return null; }
     }
 
 

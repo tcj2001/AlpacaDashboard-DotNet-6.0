@@ -105,9 +105,10 @@ internal class MeanReversion : IBot
     /// End Method
     /// </summary>
     /// <param name="source"></param>
-    public void End(CancellationTokenSource source) 
+    public void End(CancellationTokenSource? source) 
     { 
-        source.Cancel();
+        if(source != null)
+            source.Cancel();
     }
 
     /// <summary>

@@ -183,7 +183,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.WatchList.Assets;
                     instance.ListOfAssetAndPosition = await LiveBroker.GetPositionsforAssetList(assets);
                     var symbols = instance.ListOfAssetAndPosition.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(LiveBroker, symbols, 5000,  "Bot");
+                    await Stock.Subscribe(LiveBroker, symbols, 5000,  "Bot").ConfigureAwait(false);
                 }
                 instances.Add("Live", instance);
             }
@@ -203,7 +203,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.WatchList.Assets;
                     instance.ListOfAssetAndPosition = await PaperBroker.GetPositionsforAssetList(assets);
                     var symbols = instance.ListOfAssetAndPosition.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Bot");
+                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Bot").ConfigureAwait(false); ;
                 }
                 instances.Add("Paper", instance);
             }
@@ -339,7 +339,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.watchList.Assets;
                     instance.ListOfAssetAndSnapshot = await LiveBroker.ListSnapShots(assets, 5000);
                     var symbols = instance.ListOfAssetAndSnapshot.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(LiveBroker, symbols, 5000,  "Scanner");
+                    await Stock.Subscribe(LiveBroker, symbols, 5000,  "Scanner").ConfigureAwait(false);
                 }
                 instances.Add("Live", instance);
             }
@@ -358,7 +358,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.watchList.Assets;
                     instance.ListOfAssetAndSnapshot = await PaperBroker.ListSnapShots(assets, 5000);
                     var symbols = instance.ListOfAssetAndSnapshot.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Scanner");
+                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Scanner").ConfigureAwait(false);
                 }
                 instances.Add("Paper", instance);
             }
@@ -433,7 +433,7 @@ public partial class AlpacaDashboard : Form
         //subscribe min bar for all symbol
         if (_mySettings.Value.Subscribed)
         {
-            await Stock.SubscribeMinutesBarForAllSymbols(LiveBroker, PaperBroker);
+            await Stock.SubscribeMinutesBarForAllSymbols(LiveBroker, PaperBroker).ConfigureAwait(false); ;
         }
 
         //start a event loop for portfolio and watchlist stock on periodic interval
@@ -1373,11 +1373,11 @@ public partial class AlpacaDashboard : Form
             {
                 if (Environment == "Live")
                 {
-                    await Stock.Subscribe(LiveBroker, textBoxSymbol.Text, "Order");
+                    await Stock.Subscribe(LiveBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false); 
                 }
                 if (Environment == "Paper")
                 {
-                    await Stock.Subscribe(PaperBroker, textBoxSymbol.Text, "Order");
+                    await Stock.Subscribe(PaperBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false); 
                 }
             }
         }
@@ -1813,14 +1813,14 @@ public partial class AlpacaDashboard : Form
             IOrder? order = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
-            if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders();
+            if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders().ConfigureAwait(false); ;
         }
         if (Environment == "Paper")
         {
             IOrder? order = await PaperBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
-            if (order != null && order.OrderStatus == OrderStatus.Accepted) await PaperBroker.UpdateOpenOrders();
+            if (order != null && order.OrderStatus == OrderStatus.Accepted) await PaperBroker.UpdateOpenOrders().ConfigureAwait(false); ;
         }
     }
 
@@ -1837,11 +1837,11 @@ public partial class AlpacaDashboard : Form
             var clientId = focusedItem.SubItems[6].Text;
             if (Environment == "Live")
             {
-                await LiveBroker.DeleteOpenOrder(Guid.Parse(clientId));
+                await LiveBroker.DeleteOpenOrder(Guid.Parse(clientId)).ConfigureAwait(false); ;
             }
             if (Environment == "Paper")
             {
-                await PaperBroker.DeleteOpenOrder(Guid.Parse(clientId));
+                await PaperBroker.DeleteOpenOrder(Guid.Parse(clientId)).ConfigureAwait(false); ;
             }
         }
         catch { }
@@ -1866,7 +1866,7 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private void ScanButton_Click(object? sender, EventArgs e)
+    private async void ScanButton_Click(object? sender, EventArgs e)
     {
         Dictionary<string, IScanner>? instances = null;
         IScanner? instance = null;
@@ -1908,7 +1908,7 @@ public partial class AlpacaDashboard : Form
                         SetValuesOfControlsforScanner(instance, tfcc, _type, p);
                     }
                 }
-                instance.Scan();
+                await instance.Scan().ConfigureAwait(false); 
             }
         }
     }
@@ -2135,9 +2135,10 @@ public partial class AlpacaDashboard : Form
                     try
                     {
                         CancellationTokenSource? cts = null;
-                        if(instance.ActiveAssets!=null)
-                            instance.ActiveAssets.TryGetValue(assetPosition.Key, out cts);
-
+                        if (instance.ActiveAssets != null)
+                        {
+                            cts = instance.ActiveAssets.Where(x => x.Key.Symbol == assetPosition.Key.Symbol).Select(x => x.Value).FirstOrDefault();
+                        }
                         if (cts != null)
                         {
                             item.BackColor = Color.Green;
@@ -2248,7 +2249,10 @@ public partial class AlpacaDashboard : Form
                         if (asset != null)
                         {
                             CancellationTokenSource? cts = null;
-                            instance.ActiveAssets?.TryGetValue(asset, out cts);
+                            if (instance.ActiveAssets != null)
+                            {
+                                cts = instance.ActiveAssets.Where(x => x.Key.Symbol == asset.Symbol).Select(x => x.Value).FirstOrDefault();
+                            }
                             if (cts != null)
                             {
                                 contextMenuStripBot.Items[0].Enabled = false;
@@ -2321,15 +2325,17 @@ public partial class AlpacaDashboard : Form
                 }
             }
 
+            //change color to green 
+            botListView.FocusedItem.BackColor = Color.Green;
+
             //start 
             if (instance.SelectedAsset!=null && instance.ActiveAssets != null)
             {
-                CancellationTokenSource botTokenSource = await instance.Start(instance.SelectedAsset);
+                CancellationTokenSource botTokenSource = await instance.Start(instance.SelectedAsset).ConfigureAwait(false); 
                 instance.ActiveAssets.Add(instance.SelectedAsset, botTokenSource);
             }
         }
 
-        botListView.FocusedItem.BackColor = Color.Green;
     }
 
     private void toolStripMenuItemStop_Click(object sender, EventArgs e)
@@ -2342,8 +2348,16 @@ public partial class AlpacaDashboard : Form
         //End
         if (instance.SelectedAsset != null && instance.ActiveAssets != null)
         {
-            instance.End(instance.ActiveAssets[instance.SelectedAsset]);
-            instance.ActiveAssets.Remove(instance.SelectedAsset);
+            var key = instance.ActiveAssets.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol).Select(x=>x).FirstOrDefault();
+            if (key != null) {
+                CancellationTokenSource? cts = null;
+                instance.ActiveAssets.TryGetValue(key, out cts);
+                instance.End(cts);
+                foreach (var asset in instance.ActiveAssets.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol))
+                {
+                    instance.ActiveAssets.Remove(asset);
+                }
+            }
         }
     }
 
@@ -2355,7 +2369,10 @@ public partial class AlpacaDashboard : Form
         botListView.Items.Remove(botListView.FocusedItem);
         if (instance.SelectedAsset != null)
         {
-            instance.ListOfAssetAndPosition.Remove(instance.SelectedAsset);
+            foreach(var asset in instance.ListOfAssetAndPosition.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol))
+            {
+                instance.ListOfAssetAndPosition.Remove(asset);
+            }
             if (Environment == "Paper")
             {
                 PaperBroker.DeleteItemFromWatchList(instance.WatchList, instance.SelectedAsset);
