@@ -68,7 +68,7 @@ internal class MeanReversion : IBot
     public MeanReversion(Broker broker)
     {
         this.Broker = broker;
-        ActiveAssets = new Dictionary<IAsset, CancellationTokenSource>();    
+        ActiveAssets = new Dictionary<IAsset, CancellationTokenSource>();
     }
 
     /// <summary>
@@ -105,9 +105,9 @@ internal class MeanReversion : IBot
     /// End Method
     /// </summary>
     /// <param name="source"></param>
-    public void End(CancellationTokenSource? source) 
-    { 
-        if(source != null)
+    public void End(CancellationTokenSource? source)
+    {
+        if (source != null)
             source.Cancel();
     }
 
@@ -118,44 +118,74 @@ internal class MeanReversion : IBot
     /// <param name="barTimeFrameUnit"></param>
     /// <param name="barTimeFrameCount"></param>
     /// <param name="token"></param>
-    private async void BotLogic(IStock stock, BarTimeFrame barTimeFrame, int averageBars,  CancellationToken token)
+    private async void BotLogic(IStock stock, BarTimeFrame barTimeFrame, int averageBars, CancellationToken token)
     {
-        List<Decimal?> closingPrices = new(); 
+        List<Decimal?> closingPrices = new();
         IStock? updatedStock = null;
         try
         {
             var timeUtc = DateTime.UtcNow;
             TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
             DateTime easternTime = TimeZoneInfo.ConvertTimeFromUtc(timeUtc, easternZone);
-            var bars  = await Broker.GetHistoricalBar(stock.Asset, barTimeFrame, averageBars, easternTime);
+
+            //get historical bars
+            var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
             closingPrices = bars.Select(x => x?.Close).ToList();
 
+            //do while its not ended
             while (!token.IsCancellationRequested)
             {
-                //get update stock value 
+                //get update stock data 
                 if (Broker.Environment == "Paper")
                 {
-                    updatedStock = Stock.PaperStockObjects.GetStock(stock.Asset.Symbol);
+                    updatedStock = Stock.PaperStockObjects.GetStock(stock?.Asset?.Symbol);
                 }
                 if (Broker.Environment == "Live")
                 {
-                    updatedStock = Stock.LiveStockObjects.GetStock(stock.Asset.Symbol);
+                    updatedStock = Stock.LiveStockObjects.GetStock(stock?.Asset?.Symbol);
                 }
 
-                closingPrices.Add(updatedStock?.Close);
+                //your main bot logic here
+                /////////////////////////////////////////////////////////////////////////////////
+
+                var avg = closingPrices.Average();
+                var diff = avg - updatedStock?.MinuteBar?.Close;
+
+                if (diff < 0)
+                {
+                    //price is above average
+                    if (updatedStock?.Position?.Quantity > 0)
+                    {
+                        if(updatedStock?.Asset?.Symbol!=null)
+                            await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, true,
+                            updatedStock.Asset.Symbol, OrderQuantity.Fractional((decimal)updatedStock.Position.Quantity), null, updatedStock?.MinuteBar?.Close,
+                            null, null).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var account = await Broker.GetAccountDetails();
+                        var equity = account?.Equity;
+                        var multiplier = ((decimal?)account?.Multiplier);
+                        var portfolioShare = -1 * diff / updatedStock?.MinuteBar?.Close * 200;
+                        var targetPositionValue = -1 * account?.Equity * multiplier * portfolioShare;
+                        var amountToShort = targetPositionValue - updatedStock?.Position?.MarketValue ?? 0M;
+                    }
+                }
+
+
+                closingPrices.Add(updatedStock?.MinuteBar?.Close);
                 if (closingPrices.Count > BarTimeFrameCount)
                 {
                     closingPrices.RemoveAt(0);
                 }
 
-                var avg = closingPrices.Average();
-                var diff = avg - updatedStock?.Close;
+                /////////////////////////////////////////////////////////////////////////////////
 
                 var looptime = 0;
                 if (barTimeFrame.Unit == BarTimeFrameUnit.Minute) looptime = barTimeFrame.Value;
-                //if (barTimeFrame.Unit == BarTimeFrameUnit.Hour) looptime = barTimeFrame.Value * 60;
-                //if (barTimeFrame.Unit == BarTimeFrameUnit.Day) looptime = barTimeFrame.Value * 60 * 24;
-                await Task.Delay(TimeSpan.FromSeconds(looptime), token);
+                if (barTimeFrame.Unit == BarTimeFrameUnit.Hour) looptime = barTimeFrame.Value * 60;
+                if (barTimeFrame.Unit == BarTimeFrameUnit.Day) looptime = barTimeFrame.Value * 60 * 24;
+                await Task.Delay(TimeSpan.FromMinutes(looptime), token);
             }
         }
         catch (Exception ex)

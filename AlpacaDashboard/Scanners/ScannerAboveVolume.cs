@@ -99,7 +99,7 @@ internal class ScannerAboveVolume : IScanner
 
         //subscribe all selected symbols
         IEnumerable<IAsset> assets2 = selectedAssetAndSnapShot.Select(x => x.Key);
-        await Stock.Subscribe(Broker, assets2, 5000, "Scanner").ConfigureAwait(false);;
+        await Stock.Subscribe(Broker, assets2, 5000, "Scanner").ConfigureAwait(false); ;
 
         //symbol and snapshot list as passed by the generated event to load listview
         ListOfAssetAndSnapshot = selectedAssetAndSnapShot;

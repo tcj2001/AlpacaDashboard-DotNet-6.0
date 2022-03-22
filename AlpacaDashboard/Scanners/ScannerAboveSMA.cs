@@ -43,7 +43,7 @@ internal class ScannerAboveSMA : IScanner
     #endregion
 
     //Define all other field that need to shown on the UI
-    
+
     //TimeFrame unit
     private BarTimeFrameUnit _BarTimeFrameUnit = BarTimeFrameUnit.Day;
     public BarTimeFrameUnit BarTimeFrameUnit { get => _BarTimeFrameUnit; set => _BarTimeFrameUnit = value; }
