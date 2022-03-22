@@ -35,6 +35,6 @@ public interface IBot
     Task<CancellationTokenSource> Start(IAsset asset);
 
     //End Bot
-    void End(CancellationTokenSource token);
+    void End(CancellationTokenSource? token);
     
 }
