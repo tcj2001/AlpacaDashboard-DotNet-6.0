@@ -1,4 +1,6 @@
-﻿namespace AlpacaDashboard;
+﻿using System.Reflection;
+
+namespace AlpacaDashboard;
 
 public static class Helper
 {

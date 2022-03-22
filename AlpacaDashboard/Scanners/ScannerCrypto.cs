@@ -20,23 +20,15 @@ internal class ScannerCrypto : IScanner
     public event EventHandler<ScannerListUpdatedEventArgs> ScannerListUpdated = default!;
 
     //list to hold symbol and last bar of the time frame
-    public Dictionary<string, ISnapshot> ListOfSymbolAndSnapshot { get; set; } = new();
-
-    //TimeFrame unit
-    private BarTimeFrameUnit _BarTimeFrameUnit = BarTimeFrameUnit.Day;
-    public BarTimeFrameUnit BarTimeFrameUnit { get => _BarTimeFrameUnit; set => _BarTimeFrameUnit = value; }
-
-    //Required BarTimeFrameUnit 
-    private int _BarTimeFrameCount = 30;
-    public int BarTimeFrameCount { get => _BarTimeFrameCount; set => _BarTimeFrameCount = value; }
+    public Dictionary<IAsset, ISnapshot?> ListOfAssetAndSnapshot { get; set; } = new();
 
     /// <summary>
     /// Get a list of scanned symbols
     /// </summary>
     /// <returns></returns>
-    public Dictionary<string, ISnapshot> GetScannedList()
+    public Dictionary<IAsset, ISnapshot?> GetScannedList()
     {
-        return ListOfSymbolAndSnapshot;
+        return ListOfAssetAndSnapshot;
     }
 
     /// <summary>
@@ -76,17 +68,17 @@ internal class ScannerCrypto : IScanner
         var selectedAssets = assets.Where(x => x.IsTradable).ToList();
 
         //get a list of snapshots for the selected symbols
-        var symbolAndSnapshots = await Broker.ListSnapShots(selectedAssets, 5000).ConfigureAwait(false);
+        var assetAndSnapshots = await Broker.ListSnapShots(selectedAssets, 5000).ConfigureAwait(false);
 
         //subscribe all selected symbols
-        IEnumerable<string> symbols = symbolAndSnapshots.Select(x => x.Key).ToList();
-        await Stock.Subscribe(Broker, symbols, "Scanner").ConfigureAwait(false);
+        IEnumerable<IAsset> assets2 = assetAndSnapshots.Select(x => x.Key).ToList();
+        await Stock.Subscribe(Broker, assets2, 5000, "Scanner").ConfigureAwait(false);
 
         //symbol and snapshot list as passed by the generated event to load listview
-        ListOfSymbolAndSnapshot = symbolAndSnapshots;
+        ListOfAssetAndSnapshot = assetAndSnapshots;
         ScannerListUpdatedEventArgs opuea = new()
         {
-            ListOfsymbolAndSnapshot = ListOfSymbolAndSnapshot
+            ListOfAssetAndSnapshot = ListOfAssetAndSnapshot
         };
         OnListUpdated(opuea);
 
