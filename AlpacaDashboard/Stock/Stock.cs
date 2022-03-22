@@ -2,47 +2,29 @@
 
 public class Stock : IStock
 {
-    public static bool MinutesBarSubscribed = false;
     public static Broker Broker { get; set; } = default!;
     public static StockList PaperStockObjects = new();
     public static StockList LiveStockObjects = new();
-    public IAsset Asset { get; set; }
-    public object? Tag { get; set; }
-    public string? Symbol { get; set; }
-    public bool subscribed { get; set; }
-    public decimal? Qty { get; set; }
-    public decimal? Last { get; set; }
-    public decimal? Low { get; set; }
-    public decimal? High { get; set; }
-    public decimal? Volume { get; set; }
-    public decimal? Vwap { get; set; }
-    public decimal? Open { get; set; }
-    public decimal? Close { get; set; }
-    public decimal? MinuteBarClose { get; set; }
-    public decimal? MarketValue { get; set; }
-    public decimal? OpenPositionValue { get; set; }
-    public decimal? BidPrice { get; set; }
-    public decimal? BidSize { get; set; }
-    public string? BidExchange { get; set; }
-    public decimal? AskPrice { get; set; }
-    public decimal? AskSize { get; set; }
-    public string? AskExchange { get; set; }
-    public Broker broker { get; set; }
-    public DateTime? MinuteBarDateTime { get; set; }
-    public DateTime? QuoteDateTime { get; set; }
-    public DateTime? TradeDateTime { get; set; }
+    public IAsset? Asset { get; set; }
+    public IQuote? Quote { get; set; }
+    public ITrade? Trade { get; set; }
+    public IPosition? Position { get; set; }
+    public ITradeUpdate? TradeUpdate { get; set; }
 
-    public Stock(Broker broker, IAsset asset, string symbol, string type)
+    public IBar? MinuteBar { get; set; }
+    public bool subscribed { get; set; }
+    public static bool MinutesBarSubscribed = false;
+    public object Tag { get; set; }
+
+    public Stock(Broker broker, IAsset asset, string type)
     {
-        this.broker = broker;
-        this.Symbol = symbol;
         this.Asset = asset;
         this.Tag = (string)type;
 
         IStock? stock = null;
         if (broker.Environment == "Live")
         {
-            stock = LiveStockObjects.GetStock(symbol);
+            stock = LiveStockObjects.GetStock(asset.Symbol);
             if (stock == null)
             {
                 LiveStockObjects.Add(this);
@@ -50,7 +32,7 @@ public class Stock : IStock
         }
         if (broker.Environment == "Paper" && Stock.PaperStockObjects != null)
         {
-            stock = PaperStockObjects.GetStock(symbol);
+            stock = PaperStockObjects.GetStock(asset.Symbol);
             if (stock == null)
             {
                 PaperStockObjects.Add(this);
@@ -78,7 +60,7 @@ public class Stock : IStock
                 IStock? stock = Stock.LiveStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
             if (broker.Environment == "Paper")
@@ -86,7 +68,7 @@ public class Stock : IStock
                 IStock? stock = Stock.PaperStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
 
@@ -173,7 +155,7 @@ public class Stock : IStock
                 IStock? stock = LiveStockObjects.GetStock(asset.Symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, asset.Symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
             if (Broker.Environment == "Paper")
@@ -181,7 +163,7 @@ public class Stock : IStock
                 IStock? stock = PaperStockObjects.GetStock(asset.Symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, asset.Symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
         }
@@ -207,7 +189,7 @@ public class Stock : IStock
                     barSubscription = Broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbols);
                     barSubscription.Received += CryptoMinAggrSubscription_Received;
                     await Broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
-                    
+
                     IEnumerable<IStock> cryptoStocks = LiveStockObjects.GetStocks(AssetClass.Crypto, symbols);
                     foreach (Stock stock in cryptoStocks)
                     {
@@ -326,7 +308,7 @@ public class Stock : IStock
             while (!token.IsCancellationRequested)
             {
                 if (!Broker.subscribed)
-                { 
+                {
                     //get all snapshots (not used as quotes are subscribed)
                     await UpdateStocksWithSnapshots("Paper").ConfigureAwait(false);
                     await UpdateStocksWithSnapshots("Live").ConfigureAwait(false);
@@ -350,7 +332,7 @@ public class Stock : IStock
     /// <returns></returns>
     static private async Task UpdateStocksWithSnapshots(string environment)
     {
-        IEnumerable<IAsset>? assets = null;
+        IEnumerable<IAsset?>? assets = null;
         if (environment == "Live")
             assets = LiveStockObjects.GetAssets();
         if (environment == "Paper")
@@ -368,13 +350,7 @@ public class Stock : IStock
                     stock = PaperStockObjects.GetStock(symbolAndSnapshot.Key);
                 if (stock != null)
                 {
-                    stock.BidSize = symbolAndSnapshot.Value?.Quote?.BidSize;
-                    stock.AskSize = symbolAndSnapshot.Value?.Quote?.AskSize;
-                    stock.BidPrice = symbolAndSnapshot.Value?.Quote?.BidPrice;
-                    stock.AskPrice = symbolAndSnapshot.Value?.Quote?.AskPrice;
-                    stock.BidExchange = symbolAndSnapshot.Value?.Quote?.BidExchange;
-                    stock.AskExchange = symbolAndSnapshot.Value?.Quote?.AskExchange;
-                    stock.QuoteDateTime = symbolAndSnapshot.Value?.Quote?.TimestampUtc;
+                    stock.Quote = symbolAndSnapshot.Value?.Quote;
                 }
             }
 
@@ -388,8 +364,7 @@ public class Stock : IStock
                     stock = PaperStockObjects.GetStock(symbolAndTrades.Key);
                 if (stock != null)
                 {
-                    stock.Last = symbolAndTrades.Value.Price;
-                    stock.TradeDateTime = symbolAndTrades.Value.TimestampUtc;
+                    stock.Trade = symbolAndTrades.Value;
                 }
             }
         }
@@ -405,15 +380,7 @@ public class Stock : IStock
         IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
-            stock.MinuteBarClose = obj.Close;
-            stock.MinuteBarDateTime = obj.TimeUtc;
+            stock.MinuteBar = obj;
         }
     }
 
@@ -427,8 +394,7 @@ public class Stock : IStock
         IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
-            stock.TradeDateTime = obj.TimestampUtc;
+            stock.Trade = obj;
         }
     }
 
@@ -442,13 +408,7 @@ public class Stock : IStock
         IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
-            stock.QuoteDateTime = obj.TimestampUtc;
+            stock.Quote = obj;
         }
     }
 
@@ -461,15 +421,7 @@ public class Stock : IStock
         IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
-            stock.MinuteBarClose = obj.Close;
-            stock.MinuteBarDateTime = obj.TimeUtc;
+            stock.MinuteBar = obj;
         }
     }
 
@@ -483,8 +435,7 @@ public class Stock : IStock
         IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
-            stock.TradeDateTime = obj.TimestampUtc;
+            stock.Trade = obj;
         }
     }
 
@@ -498,13 +449,7 @@ public class Stock : IStock
         IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
-            stock.QuoteDateTime = obj.TimestampUtc;
+            stock.Quote = obj;
         }
     }
     #endregion
@@ -520,28 +465,12 @@ public class Stock : IStock
         stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
-            stock.MinuteBarClose = obj.Close;
-            stock.MinuteBarDateTime = obj.TimeUtc;
+            stock.MinuteBar = obj;
         }
         stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
-            stock.MinuteBarClose = obj.Close;
-            stock.MinuteBarDateTime = obj.TimeUtc;
+            stock.MinuteBar = obj;
         }
     }
 
@@ -556,14 +485,12 @@ public class Stock : IStock
         stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
-            stock.TradeDateTime = obj.TimestampUtc;
+            stock.Trade = obj;
         }
         stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
-            stock.TradeDateTime = obj.TimestampUtc;
+            stock.Trade = obj;
         }
     }
 
@@ -578,24 +505,12 @@ public class Stock : IStock
         stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
-            stock.QuoteDateTime = obj.TimestampUtc;
+            stock.Quote = obj;
         }
         stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
-            stock.QuoteDateTime = obj.TimestampUtc;
+            stock.Quote = obj;
         }
     }
     #endregion

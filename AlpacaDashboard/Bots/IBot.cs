@@ -24,7 +24,7 @@ public interface IBot
 
     //list to hold symbol and last bar of the time frame
     Dictionary<IAsset, IPosition?> ListOfAssetAndPosition { get; set; }
-    
+
     //Return list of symbol and Last Bar
     Dictionary<IAsset, IPosition?> GetBotList();
 
@@ -36,5 +36,5 @@ public interface IBot
 
     //End Bot
     void End(CancellationTokenSource? token);
-    
+
 }

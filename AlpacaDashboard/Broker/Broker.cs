@@ -2,8 +2,8 @@
 global using Alpaca.Markets.Extensions;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
-global using ILogger = Microsoft.Extensions.Logging.ILogger;
 global using AlpacaEnvironment = Alpaca.Markets.Environments;
+global using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace AlpacaDashboard.Brokers;
 
@@ -35,7 +35,7 @@ public class Broker : IDisposable
     private CancellationToken token;
     public string Environment { get; set; }
 
-    public CryptoExchange SelectedCryptoExchange { get; set;}
+    public CryptoExchange SelectedCryptoExchange { get; set; }
 
     static public IAlpacaCryptoDataClient alpacaCryptoDataClient { get; set; } = default!;
     static public IAlpacaCryptoStreamingClient alpacaCryptoStreamingClient { get; set; } = default!;
@@ -66,7 +66,7 @@ public class Broker : IDisposable
         Environment = environment;
 
         subscribed = _mySetting.Value.Subscribed;
-        
+
         SelectedCryptoExchange = (CryptoExchange)Enum.Parse(typeof(CryptoExchange), mySetting.Value.CryptoExchange);
 
         secretKey = new(key, secret);
@@ -303,7 +303,7 @@ public class Broker : IDisposable
     /// <param name="orderType"></param>
     /// <param name="timeInForce"></param>
     /// <returns></returns>
-    public async Task<IOrder?> SubmitOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, string symbol, OrderQuantity quantity, decimal? stopPrice, 
+    public async Task<IOrder?> SubmitOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, string symbol, OrderQuantity quantity, decimal? stopPrice,
         decimal? limitPrice, int? trailOffsetPercentage, decimal? trailOffsetDollars)
     {
         IOrder? order = null;
@@ -519,7 +519,7 @@ public class Broker : IDisposable
 
             if (stock != null)
             {
-                stock.Qty = obj.PositionQuantity;
+                stock.TradeUpdate = obj;
             }
 
             var tr = obj.TimestampUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)obj.TimestampUtc, easternZone).ToString();
@@ -541,7 +541,7 @@ public class Broker : IDisposable
     #region Account Method and UI Events
 
     /// <summary>
-    /// generate a event for UI to display account data
+    /// Get Account data
     /// </summary>
     /// <returns></returns>
     public async Task<IAccount?> GetAccountDetails()
@@ -859,7 +859,7 @@ public class Broker : IDisposable
     /// <param name="assets"></param>
     /// <param name="maxAssetsAtOneTime"></param>
     /// <returns></returns>
-    public async Task<Dictionary<IAsset, ISnapshot?>> ListSnapShots(IEnumerable<IAsset> assets, int maxAssetsAtOneTime)
+    public async Task<Dictionary<IAsset, ISnapshot?>> ListSnapShots(IEnumerable<IAsset?> assets, int maxAssetsAtOneTime)
     {
         //dictionary to hold ISnapshot for each symbol
         Dictionary<IAsset, ISnapshot?> keyValues = new();
@@ -868,26 +868,28 @@ public class Broker : IDisposable
         List<ISnapshot> snapshots = new();
 
         //get ISnapshot of stock symbols for assetCount at a time
-        for (int i = 0; i < assets.Where(x => x.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
+        for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
-            var stockSnapshots = await alpacaDataClient.ListSnapshotsAsync(assetSubset.Select(x => x.Symbol), token);
+            var assetSubset = assets.Where(x => x?.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
+            var stockSnapshots = await alpacaDataClient.ListSnapshotsAsync((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), token);
             foreach (var item in stockSnapshots)
             {
-                var asset = assets.Where(x => x.Symbol == item.Key).First();
-                keyValues.Add(asset, item.Value);
+                var asset = assets.Where(x => x?.Symbol == item.Key).First();
+                if (asset != null)
+                    keyValues.Add(asset, item.Value);
             }
         }
         //get ISnapshot of crypto symbols for assetCount at a time
-        for (int i = 0; i < assets.Where(x => x.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
+        for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
-            var sdlr = new SnapshotDataListRequest(assetSubset.Select(x => x.Symbol), SelectedCryptoExchange);
+            var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
+            var sdlr = new SnapshotDataListRequest((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), SelectedCryptoExchange);
             var cryptoSnapshots = await alpacaCryptoDataClient.ListSnapshotsAsync(sdlr, token);
             foreach (var item in cryptoSnapshots)
             {
-                var asset = assets.Where(x => x.Symbol == item.Key).First();
-                keyValues.Add(asset, item.Value);
+                var asset = assets.Where(x => x?.Symbol == item.Key).First();
+                if (asset != null)
+                    keyValues.Add(asset, item.Value);
             }
         }
         return keyValues;
@@ -899,7 +901,7 @@ public class Broker : IDisposable
     /// <param name="assets"></param>
     /// <param name="maxAssetsAtOneTime"></param>
     /// <returns></returns>
-    public async Task<Dictionary<string, ITrade>> ListTrades(IEnumerable<IAsset> assets, int maxAssetsAtOneTime)
+    public async Task<Dictionary<string, ITrade>> ListTrades(IEnumerable<IAsset?> assets, int maxAssetsAtOneTime)
     {
         //dictionary to hold ISnapshot for each symbol
         Dictionary<string, ITrade> keyValues = new();
@@ -908,20 +910,20 @@ public class Broker : IDisposable
         List<ITrade> trades = new();
 
         //get ISnapshot of stock symbols for assetCount at a time
-        for (int i = 0; i < assets.Where(x => x.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
+        for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
-            var stockTrades = await alpacaDataClient.ListLatestTradesAsync(assetSubset.Select(x => x.Symbol), token).ConfigureAwait(false);
+            var assetSubset = assets.Where(x => x?.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
+            var stockTrades = await alpacaDataClient.ListLatestTradesAsync((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), token).ConfigureAwait(false);
             foreach (var item in stockTrades)
             {
                 keyValues.Add(item.Key, item.Value);
             }
         }
         //get ISnapshot of crypto symbols for assetCount at a time
-        for (int i = 0; i < assets.Where(x => x.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
+        for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
-            var ldlr = new LatestDataListRequest(assetSubset.Select(x => x.Symbol), SelectedCryptoExchange);
+            var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
+            var ldlr = new LatestDataListRequest((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), SelectedCryptoExchange);
             var cryptoSnapshots = await alpacaCryptoDataClient.ListLatestTradesAsync(ldlr, token).ConfigureAwait(false);
             foreach (var item in cryptoSnapshots)
             {
@@ -939,13 +941,13 @@ public class Broker : IDisposable
     /// <param name="barTimeFrameCount"></param>
     /// <param name="toDate"></param>
     /// <returns></returns>
-    public async Task<IEnumerable<IBar>> GetHistoricalBar(IAsset asset, BarTimeFrame barTimeFrame, int noOfBars, DateTime toDate)
+    public async Task<IEnumerable<IBar>> GetHistoricalBar(IAsset? asset, BarTimeFrame barTimeFrame, int noOfBars, DateTime toDate)
     {
         //get the FromDate based on barTimeFrameUnit, barTimeFrameCount and toDate  (barTimeFrame can be 20Day, 15Min, 5Weeks etc)
-        var fromDate = GetTimeIntervalFrom(barTimeFrame, noOfBars,  toDate);
+        var fromDate = GetTimeIntervalFrom(barTimeFrame, noOfBars, toDate);
 
         List<IBar> bars = new();
-        if (asset.Class == AssetClass.UsEquity)
+        if (asset?.Class == AssetClass.UsEquity)
         {
             var historicalBarsRequest = new HistoricalBarsRequest(asset.Symbol, fromDate, toDate, barTimeFrame);
             await foreach (var bar in alpacaDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
@@ -953,7 +955,7 @@ public class Broker : IDisposable
                 bars.Add(bar);
             }
         }
-        if (asset.Class == AssetClass.Crypto)
+        if (asset?.Class == AssetClass.Crypto)
         {
             var historicalBarsRequest = new HistoricalCryptoBarsRequest(asset.Symbol, fromDate, toDate, barTimeFrame);
             await foreach (var bar in alpacaCryptoDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
@@ -1004,7 +1006,7 @@ public class Broker : IDisposable
                 bars.Add(bar);
             }
         }
-        assetAndBars = bars.GroupBy(x => x.Symbol).ToDictionary(g => assets.Where(a=>a.Symbol==g.Key).Select(a=>a).First(), g => g.ToList());
+        assetAndBars = bars.GroupBy(x => x.Symbol).ToDictionary(g => assets.Where(a => a.Symbol == g.Key).Select(a => a).First(), g => g.ToList());
         return assetAndBars;
     }
 
@@ -1014,7 +1016,7 @@ public class Broker : IDisposable
     /// <param name="barTimeFrame"></param>
     /// <param name="toDate"></param>
     /// <returns></returns>
-    public static DateTime GetTimeIntervalFrom(BarTimeFrame barTimeFrame, int noOfBars , DateTime toDate)
+    public static DateTime GetTimeIntervalFrom(BarTimeFrame barTimeFrame, int noOfBars, DateTime toDate)
     {
         DateTime fromDate = toDate;
         switch (barTimeFrame.Unit)

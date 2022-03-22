@@ -37,8 +37,8 @@ Option to start, end or delete a Bot for a selected sysmbol
 ![Imgur](https://i.imgur.com/CKCOqAq.png)
 
 Scanner class should implement this Interface  
-![Imgur](https://i.imgur.com/Peouweo.png)
+![Imgur](https://i.imgur.com/PZOUj45.png)
 
 Bot classes should implement this interface  
-![Imgur](https://i.imgur.com/HMxY7j7.png)
+![Imgur](https://i.imgur.com/JjXiCMO.png)
 

@@ -183,7 +183,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.WatchList.Assets;
                     instance.ListOfAssetAndPosition = await LiveBroker.GetPositionsforAssetList(assets);
                     var symbols = instance.ListOfAssetAndPosition.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(LiveBroker, symbols, 5000,  "Bot").ConfigureAwait(false);
+                    await Stock.Subscribe(LiveBroker, symbols, 5000, "Bot").ConfigureAwait(false);
                 }
                 instances.Add("Live", instance);
             }
@@ -339,7 +339,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.watchList.Assets;
                     instance.ListOfAssetAndSnapshot = await LiveBroker.ListSnapShots(assets, 5000);
                     var symbols = instance.ListOfAssetAndSnapshot.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(LiveBroker, symbols, 5000,  "Scanner").ConfigureAwait(false);
+                    await Stock.Subscribe(LiveBroker, symbols, 5000, "Scanner").ConfigureAwait(false);
                 }
                 instances.Add("Live", instance);
             }
@@ -720,9 +720,7 @@ public partial class AlpacaDashboard : Form
                     stock = Stock.PaperStockObjects.GetStock(pos.Symbol);
                 if (stock != null)
                 {
-                    stock.Qty = pos.Quantity;
-                    stock.MarketValue = pos.MarketValue;
-                    stock.OpenPositionValue = pos.CostBasis;
+                    stock.Position = pos;
                 }
                 ListViewItem item = new ListViewItem(pos.Symbol);
                 item.SubItems.Add(pos.AssetLastPrice.ToString());
@@ -747,19 +745,19 @@ public partial class AlpacaDashboard : Form
             {
                 if (listViewPositions.Items.Count > 0)
                 {
-                    ListViewItem item = listViewPositions.FindItemWithText(stock.Asset.Symbol, false, 0, false);
+                    ListViewItem item = listViewPositions.FindItemWithText(stock.Asset?.Symbol, false, 0, false);
                     if (item != null)
                     {
-                        if (stock.Last.ToString() != "")
+                        if (stock.Trade?.Price.ToString() != "")
                         {
-                            if (item.SubItems[1].Text != stock.Last.ToString()) item.SubItems[1].Text = stock.Last.ToString();
+                            if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
                             try
                             {
                                 var marketValue = (Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text));
                                 if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
-                                if (stock.OpenPositionValue != null)
+                                if (stock.Position?.CostBasis != null)
                                 {
-                                    var profit = marketValue - Convert.ToDecimal(stock.OpenPositionValue.ToString());
+                                    var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
                                     if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
                                 }
                             }
@@ -944,15 +942,15 @@ public partial class AlpacaDashboard : Form
             {
                 if (lv.Items.Count > 0)
                 {
-                    ListViewItem item = lv.FindItemWithText(stock.Asset.Symbol, false, 0, false);
+                    ListViewItem item = lv.FindItemWithText(stock?.Asset?.Symbol, false, 0, false);
                     if (item != null)
                     {
                         //if (stock.subscribed) item.BackColor = Color.SkyBlue;
-                        if (stock.BidSize != null && item.SubItems[1].Text != stock.BidSize.ToString()) item.SubItems[1].Text = stock.BidSize.ToString();
-                        if (stock.BidPrice != null && item.SubItems[2].Text != stock.BidPrice.ToString()) item.SubItems[2].Text = stock.BidPrice.ToString();
-                        if (stock.Last != null && item.SubItems[3].Text != stock.Last.ToString()) item.SubItems[3].Text = stock.Last.ToString();
-                        if (stock.AskPrice != null && item.SubItems[4].Text != stock.AskPrice.ToString()) item.SubItems[4].Text = stock.AskPrice.ToString();
-                        if (stock.AskSize != null && item.SubItems[5].Text != stock.AskSize.ToString()) item.SubItems[5].Text = stock.AskSize.ToString();
+                        if (stock?.Quote?.BidSize != null && item.SubItems[1].Text != stock.Quote?.BidSize.ToString()) item.SubItems[1].Text = stock.Quote?.BidSize.ToString();
+                        if (stock?.Quote?.BidPrice != null && item.SubItems[2].Text != stock.Quote?.BidPrice.ToString()) item.SubItems[2].Text = stock.Quote?.BidPrice.ToString();
+                        if (stock?.Trade?.Price != null && item.SubItems[3].Text != stock.Trade.Price.ToString()) item.SubItems[3].Text = stock.Trade?.Price.ToString();
+                        if (stock?.Quote?.AskPrice != null && item.SubItems[4].Text != stock.Quote?.AskPrice.ToString()) item.SubItems[4].Text = stock.Quote?.AskPrice.ToString();
+                        if (stock?.Quote?.AskSize != null && item.SubItems[5].Text != stock.Quote?.AskSize.ToString()) item.SubItems[5].Text = stock.Quote?.AskSize.ToString();
                     }
                 }
             }));
@@ -1188,19 +1186,19 @@ public partial class AlpacaDashboard : Form
     /// <param name="Stock"></param>
     private void UpdateOrderBoxPrices(IStock Stock)
     {
-        if (Stock.Asset.Symbol == textBoxSymbol.Text)
+        if (Stock?.Asset?.Symbol == textBoxSymbol.Text)
         {
             labelBidPrice.Invoke(new MethodInvoker(delegate ()
             {
-                if (Stock.BidPrice != null && labelBidPrice.Text != Stock.BidPrice.ToString()) labelBidPrice.Text = Stock.BidPrice.ToString();
+                if (Stock.Quote?.BidPrice != null && labelBidPrice.Text != Stock.Quote?.BidPrice.ToString()) labelBidPrice.Text = Stock.Quote?.BidPrice.ToString();
             }));
             labelMarketPrice.Invoke(new MethodInvoker(delegate ()
             {
-                if (Stock.Last != null && labelMarketPrice.Text != Stock.Close.ToString()) labelMarketPrice.Text = Stock.Last.ToString();
+                if (Stock.Trade?.Price != null && labelMarketPrice.Text != Stock.Trade?.Price.ToString()) labelMarketPrice.Text = Stock.Trade?.Price.ToString();
             }));
             labelAskPrice.Invoke(new MethodInvoker(delegate ()
             {
-                if (Stock.AskPrice != null && labelAskPrice.Text != Stock.AskPrice.ToString()) labelAskPrice.Text = Stock.AskPrice.ToString();
+                if (Stock.Quote?.AskPrice != null && labelAskPrice.Text != Stock.Quote?.AskPrice.ToString()) labelAskPrice.Text = Stock.Quote?.AskPrice.ToString();
             }));
         }
     }
@@ -1373,11 +1371,11 @@ public partial class AlpacaDashboard : Form
             {
                 if (Environment == "Live")
                 {
-                    await Stock.Subscribe(LiveBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false); 
+                    await Stock.Subscribe(LiveBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false);
                 }
                 if (Environment == "Paper")
                 {
-                    await Stock.Subscribe(PaperBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false); 
+                    await Stock.Subscribe(PaperBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false);
                 }
             }
         }
@@ -1908,7 +1906,7 @@ public partial class AlpacaDashboard : Form
                         SetValuesOfControlsforScanner(instance, tfcc, _type, p);
                     }
                 }
-                await instance.Scan().ConfigureAwait(false); 
+                await instance.Scan().ConfigureAwait(false);
             }
         }
     }
@@ -2091,19 +2089,19 @@ public partial class AlpacaDashboard : Form
             {
                 if (lv.Items.Count > 0)
                 {
-                    ListViewItem item = lv.FindItemWithText(stock.Asset.Symbol, false, 0, false);
+                    ListViewItem item = lv.FindItemWithText(stock.Asset?.Symbol, false, 0, false);
                     if (item != null)
                     {
-                        if (stock.Last.ToString() != "")
+                        if (stock.Trade?.Price.ToString() != "")
                         {
-                            if (item.SubItems[1].Text != stock.Last.ToString()) item.SubItems[1].Text = stock.Last.ToString();
+                            if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
                             try
                             {
                                 var marketValue = (Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text));
                                 if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
-                                if (stock.OpenPositionValue != null)
+                                if (stock.Position?.CostBasis != null)
                                 {
-                                    var profit = marketValue - Convert.ToDecimal(stock.OpenPositionValue.ToString());
+                                    var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
                                     if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
                                 }
                             }
@@ -2329,9 +2327,9 @@ public partial class AlpacaDashboard : Form
             botListView.FocusedItem.BackColor = Color.Green;
 
             //start 
-            if (instance.SelectedAsset!=null && instance.ActiveAssets != null)
+            if (instance.SelectedAsset != null && instance.ActiveAssets != null)
             {
-                CancellationTokenSource botTokenSource = await instance.Start(instance.SelectedAsset).ConfigureAwait(false); 
+                CancellationTokenSource botTokenSource = await instance.Start(instance.SelectedAsset).ConfigureAwait(false);
                 instance.ActiveAssets.Add(instance.SelectedAsset, botTokenSource);
             }
         }
@@ -2348,8 +2346,9 @@ public partial class AlpacaDashboard : Form
         //End
         if (instance.SelectedAsset != null && instance.ActiveAssets != null)
         {
-            var key = instance.ActiveAssets.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol).Select(x=>x).FirstOrDefault();
-            if (key != null) {
+            var key = instance.ActiveAssets.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol).Select(x => x).FirstOrDefault();
+            if (key != null)
+            {
                 CancellationTokenSource? cts = null;
                 instance.ActiveAssets.TryGetValue(key, out cts);
                 instance.End(cts);
@@ -2369,7 +2368,7 @@ public partial class AlpacaDashboard : Form
         botListView.Items.Remove(botListView.FocusedItem);
         if (instance.SelectedAsset != null)
         {
-            foreach(var asset in instance.ListOfAssetAndPosition.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol))
+            foreach (var asset in instance.ListOfAssetAndPosition.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol))
             {
                 instance.ListOfAssetAndPosition.Remove(asset);
             }

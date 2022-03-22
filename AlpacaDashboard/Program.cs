@@ -30,7 +30,7 @@ internal class Program
                    services.Configure<MySettings>(configuration.GetSection("MySettings"));
                    services.Configure<PaperKey>(configuration.GetSection("PaperKey"));
                    services.Configure<LiveKey>(configuration.GetSection("LiveKey"));
-                   
+
                    //Add Serilog
                    Log.Logger = new LoggerConfiguration()
                        .ReadFrom.Configuration(configuration)
