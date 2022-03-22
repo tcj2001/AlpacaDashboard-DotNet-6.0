@@ -1,4 +1,4 @@
-# Alpaca Dashboard (.Net 6.0)
+﻿# Alpaca Dashboard (.Net 6.0)
 
 This is Alpaca Dashboard which will allow you to manage you portfolio in Live and Paper Environment. It will list your open position, open orders, closed orders and watchlist of open positions, these will show real time updates on the close price, position, market value, profit/loss, bid price and ask price for each position.
 Account data like buying power will updated realtime. You will also have the ability to submit new order or close position etc.  
@@ -37,8 +37,8 @@ Option to start, end or delete a Bot for a selected sysmbol
 ![Imgur](https://i.imgur.com/CKCOqAq.png)
 
 Scanner class should implement this Interface  
-![Imgur](https://i.imgur.com/Peouweo.png)
+![Imgur](https://i.imgur.com/PZOUj45.png)
 
 Bot classes should implement this interface  
-![Imgur](https://i.imgur.com/HMxY7j7.png)
+![Imgur](https://i.imgur.com/JjXiCMO.png)
 
