@@ -1,4 +1,4 @@
-﻿namespace AlpacaDashboard;
+﻿namespace AlpacaDashboard.Bots;
 
 internal class MeanReversion : IBot
 {
@@ -10,10 +10,10 @@ internal class MeanReversion : IBot
     public IWatchList WatchList { get; set; } = default!;
 
     //selected symbol
-    public string SelectedSymbol { get; set; } = default!;
+    public IAsset? SelectedAsset { get; set; } = default!;
 
     //Active symbols
-    public Dictionary<string, CancellationTokenSource> ActiveSymbols { get; set; } = new();
+    public Dictionary<IAsset, CancellationTokenSource>? ActiveAssets { get; set; } = new();
 
     //UI screen container
     public Control UiContainer { get; set; } = new();
@@ -22,26 +22,15 @@ internal class MeanReversion : IBot
     public event EventHandler<BotListUpdatedEventArgs> BotListUpdated = default!;
 
     //list to hold symbol and last bar of the time frame
-    public Dictionary<string, IPosition> ListOfSymbolAndPosition { get; set; } = new();
-
-    //TimeFrame unit
-    private BarTimeFrameUnit _BarTimeFrameUnit = BarTimeFrameUnit.Minute;
-    public BarTimeFrameUnit BarTimeFrameUnit { get => _BarTimeFrameUnit; set => _BarTimeFrameUnit = value; }
-
-    //Required BarTimeFrameUnit 
-    private int _BarTimeFrameCount = 1;
-    public int BarTimeFrameCount { get => _BarTimeFrameCount; set => _BarTimeFrameCount = value; }
-
-    //Define all other field that need to be shown on the UI
-    //none
+    public Dictionary<IAsset, IPosition?> ListOfAssetAndPosition { get; set; } = new();
 
     /// <summary>
     /// Get a list of bot symbols
     /// </summary>
     /// <returns></returns>
-    public Dictionary<string, IPosition> GetBotList()
+    public Dictionary<IAsset, IPosition?> GetBotList()
     {
-        return ListOfSymbolAndPosition;
+        return ListOfAssetAndPosition;
     }
 
     /// <summary>
@@ -58,6 +47,20 @@ internal class MeanReversion : IBot
     }
     #endregion
 
+    //Define all other field that need to be shown on the UI
+    //TimeFrame unit
+    private BarTimeFrameUnit _BarTimeFrameUnit = BarTimeFrameUnit.Minute;
+    public BarTimeFrameUnit BarTimeFrameUnit { get => _BarTimeFrameUnit; set => _BarTimeFrameUnit = value; }
+
+    //Required BarTimeFrameUnit 
+    private int _BarTimeFrameCount = 1;
+    public int BarTimeFrameCount { get => _BarTimeFrameCount; set => _BarTimeFrameCount = value; }
+
+    //MeanReversionAverageBars
+    private int _averageBars = 20;
+    public int AverageBars { get => _averageBars; set => _averageBars = value; }
+
+
     /// <summary>
     /// Constructor
     /// </summary>
@@ -65,7 +68,7 @@ internal class MeanReversion : IBot
     public MeanReversion(Broker broker)
     {
         this.Broker = broker;
-        ActiveSymbols = new Dictionary<string, CancellationTokenSource>();    
+        ActiveAssets = new Dictionary<IAsset, CancellationTokenSource>();    
     }
 
     /// <summary>
@@ -73,7 +76,7 @@ internal class MeanReversion : IBot
     /// </summary>
     /// <param name="symbol"></param>
     /// <returns></returns>
-    public async Task<CancellationTokenSource> Start(string symbol)
+    public async Task<CancellationTokenSource> Start(IAsset asset)
     {
         CancellationTokenSource source = new();
         CancellationToken token = source.Token;
@@ -82,17 +85,17 @@ internal class MeanReversion : IBot
         IStock? stock = null;
         if (Broker.Environment == "Paper")
         {
-            stock = Stock.PaperStockObjects.GetStock(symbol);
+            stock = Stock.PaperStockObjects.GetStock(asset);
         }
         if (Broker.Environment == "Live")
         {
-            stock = Stock.LiveStockObjects.GetStock(symbol);
+            stock = Stock.LiveStockObjects.GetStock(asset);
         }
 
         //Run you bot logic until cancelled
         if (stock != null)
         {
-            await Task.Run(() => BotLogic(stock, BarTimeFrameUnit, BarTimeFrameCount, source.Token), source.Token).ConfigureAwait(false);
+            await Task.Run(() => BotLogic(stock, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), AverageBars, source.Token), source.Token).ConfigureAwait(false);
         }
 
         return source;
@@ -114,13 +117,44 @@ internal class MeanReversion : IBot
     /// <param name="barTimeFrameUnit"></param>
     /// <param name="barTimeFrameCount"></param>
     /// <param name="token"></param>
-    private static async void BotLogic(IStock stock,  BarTimeFrameUnit barTimeFrameUnit, int barTimeFrameCount, CancellationToken token)
+    private async void BotLogic(IStock stock, BarTimeFrame barTimeFrame, int averageBars,  CancellationToken token)
     {
+        List<Decimal?> closingPrices = new(); 
+        IStock? updatedStock = null;
         try
         {
+            var timeUtc = DateTime.UtcNow;
+            TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            DateTime easternTime = TimeZoneInfo.ConvertTimeFromUtc(timeUtc, easternZone);
+            var bars  = await Broker.GetHistoricalBar(stock.Asset, barTimeFrame, averageBars, easternTime);
+            closingPrices = bars.Select(x => x?.Close).ToList();
+
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(barTimeFrameCount), token);
+                //get update stock value 
+                if (Broker.Environment == "Paper")
+                {
+                    updatedStock = Stock.PaperStockObjects.GetStock(stock.Asset.Symbol);
+                }
+                if (Broker.Environment == "Live")
+                {
+                    updatedStock = Stock.LiveStockObjects.GetStock(stock.Asset.Symbol);
+                }
+
+                closingPrices.Add(updatedStock?.Close);
+                if (closingPrices.Count > BarTimeFrameCount)
+                {
+                    closingPrices.RemoveAt(0);
+                }
+
+                var avg = closingPrices.Average();
+                var diff = avg - updatedStock?.Close;
+
+                var looptime = 0;
+                if (barTimeFrame.Unit == BarTimeFrameUnit.Minute) looptime = barTimeFrame.Value;
+                //if (barTimeFrame.Unit == BarTimeFrameUnit.Hour) looptime = barTimeFrame.Value * 60;
+                //if (barTimeFrame.Unit == BarTimeFrameUnit.Day) looptime = barTimeFrame.Value * 60 * 24;
+                await Task.Delay(TimeSpan.FromSeconds(looptime), token);
             }
         }
         catch (Exception ex)

@@ -10,6 +10,7 @@ public interface IStock
     decimal? BidPrice { get; set; }
     decimal? BidSize { get; set; }
     decimal? Close { get; set; }
+    decimal? MinuteBarClose { get; set; }
     decimal? High { get; set; }
     decimal? Last { get; set; }
     decimal? Low { get; set; }
@@ -20,4 +21,7 @@ public interface IStock
     bool subscribed { get; set; }
     decimal? Volume { get; set; }
     decimal? Vwap { get; set; }
+    DateTime? MinuteBarDateTime { get; set;}
+    DateTime? QuoteDateTime { get; set; }
+    DateTime? TradeDateTime { get; set; }
 }

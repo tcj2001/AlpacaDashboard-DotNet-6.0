@@ -2,5 +2,5 @@
 
 public class BotListUpdatedEventArgs : EventArgs
 {
-    public Dictionary<string, IPosition> ListOfsymbolAndPosition { get; set; } = new();
+    public Dictionary<IAsset, IPosition?> ListOfsymbolAndPosition { get; set; } = new();
 }

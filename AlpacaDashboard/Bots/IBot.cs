@@ -11,10 +11,10 @@ public interface IBot
     IWatchList WatchList { get; set; }
 
     //selected symbol
-    string SelectedSymbol { get; set; }
+    IAsset? SelectedAsset { get; set; }
 
     //Active symbols
-    Dictionary<string, CancellationTokenSource> ActiveSymbols { get; set; }
+    Dictionary<IAsset, CancellationTokenSource>? ActiveAssets { get; set; }
 
     //UI screen container
     Control UiContainer { get; set; }
@@ -23,22 +23,16 @@ public interface IBot
     public event EventHandler<BotListUpdatedEventArgs> BotListUpdated;
 
     //list to hold symbol and last bar of the time frame
-    Dictionary<string, IPosition> ListOfSymbolAndPosition { get; set; }
+    Dictionary<IAsset, IPosition?> ListOfAssetAndPosition { get; set; }
     
-    //TimeFrame unit
-    BarTimeFrameUnit BarTimeFrameUnit { get; set; }
-
-    //TimeFrame count
-    int BarTimeFrameCount { get; set; }
-
     //Return list of symbol and Last Bar
-    Dictionary<string, IPosition> GetBotList();
+    Dictionary<IAsset, IPosition?> GetBotList();
 
     //bot list updated event
     void OnListUpdated(BotListUpdatedEventArgs e);
 
     //start bot
-    Task<CancellationTokenSource> Start(string symbol);
+    Task<CancellationTokenSource> Start(IAsset asset);
 
     //End Bot
     void End(CancellationTokenSource token);

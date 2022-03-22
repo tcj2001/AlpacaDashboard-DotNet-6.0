@@ -25,6 +25,18 @@ public class StockList : IEnumerable<IStock>
         return stocks.ToList().Where(x => x.Asset.Symbol == symbol).FirstOrDefault(); 
     }
 
+
+    /// <summary>
+    /// Get stock for a Asset
+    /// </summary>
+    /// <param name="asset"></param>
+    /// <returns></returns>
+    public IStock? GetStock(IAsset asset)
+    {
+        var stock = stocks.ToList().Where(x => x.Asset.Symbol == asset.Symbol).FirstOrDefault();
+        return stock;
+    }
+
     /// <summary>
     /// Get Stock List
     /// </summary>

@@ -20,23 +20,15 @@ internal class ScannerAboveVolume : IScanner
 
 
     //list to hold symbol and last bar of the time frame
-    public Dictionary<string, ISnapshot> ListOfSymbolAndSnapshot { get; set; } = new();
-
-    //TimeFrame unit
-    private BarTimeFrameUnit _BarTimeFrameUnit = BarTimeFrameUnit.Day;
-    public BarTimeFrameUnit BarTimeFrameUnit { get => _BarTimeFrameUnit; set => _BarTimeFrameUnit = value; }
-
-    //Required BarTimeFrameUnit 
-    private int _BarTimeFrameCount = 30;
-    public int BarTimeFrameCount { get => _BarTimeFrameCount; set => _BarTimeFrameCount = value; }
+    public Dictionary<IAsset, ISnapshot?> ListOfAssetAndSnapshot { get; set; } = new();
 
     /// <summary>
     /// Get a list of scanned symbols
     /// </summary>
     /// <returns></returns>
-    public Dictionary<string, ISnapshot> GetScannedList()
+    public Dictionary<IAsset, ISnapshot?> GetScannedList()
     {
-        return ListOfSymbolAndSnapshot;
+        return ListOfAssetAndSnapshot;
     }
 
     /// <summary>
@@ -85,35 +77,35 @@ internal class ScannerAboveVolume : IScanner
         var selectedAssets = assets.Where(x => x.IsTradable).ToList();
 
         //get a list of snapshots for the selected symbols
-        var symbolAndSnapshots = await Broker.ListSnapShots(selectedAssets, 5000);
+        var assetAndSnapshots = await Broker.ListSnapShots(selectedAssets, 5000);
 
         // logic for selecting symbols with MinClose, MaxClose and MinVolume
-        Dictionary<string, ISnapshot> selectedSnapShotSymbols = new();
-        foreach (var item in symbolAndSnapshots)
+        Dictionary<IAsset, ISnapshot?> selectedAssetAndSnapShot = new();
+        foreach (var item in assetAndSnapshots)
         {
             bool select = true;
-            if (item.Value.CurrentDailyBar != null)
+            if (item.Value?.CurrentDailyBar != null)
             {
-                if (!(item.Value.CurrentDailyBar.Close >= MinClose && item.Value.CurrentDailyBar.Close <= MaxClose))
+                if (!(item.Value?.CurrentDailyBar.Close >= MinClose && item.Value.CurrentDailyBar.Close <= MaxClose))
                     select = false;
-                if (!(item.Value.CurrentDailyBar.Volume >= MinVolume))
+                if (!(item.Value?.CurrentDailyBar.Volume >= MinVolume))
                     select = false;
                 if (select)
                 {
-                    selectedSnapShotSymbols.Add(item.Key, item.Value);
+                    selectedAssetAndSnapShot.Add(item.Key, item.Value);
                 }
             }
         }
 
         //subscribe all selected symbols
-        IEnumerable<string> symbols = selectedSnapShotSymbols.Select(x => x.Key);
-        await Stock.Subscribe(Broker, symbols, "Scanner");
+        IEnumerable<IAsset> assets2 = selectedAssetAndSnapShot.Select(x => x.Key);
+        await Stock.Subscribe(Broker, assets2, 5000, "Scanner").ConfigureAwait(false);;
 
         //symbol and snapshot list as passed by the generated event to load listview
-        ListOfSymbolAndSnapshot = selectedSnapShotSymbols;
+        ListOfAssetAndSnapshot = selectedAssetAndSnapShot;
         ScannerListUpdatedEventArgs opuea = new ScannerListUpdatedEventArgs
         {
-            ListOfsymbolAndSnapshot = ListOfSymbolAndSnapshot
+            ListOfAssetAndSnapshot = ListOfAssetAndSnapshot
         };
         OnListUpdated(opuea);
 
