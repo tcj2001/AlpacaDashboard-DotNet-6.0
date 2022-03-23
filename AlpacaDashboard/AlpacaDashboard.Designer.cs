@@ -788,7 +788,7 @@
             // 
             this.contextMenuStripAddToBot.Name = "contextMenuStripAddToBot";
             this.contextMenuStripAddToBot.Size = new System.Drawing.Size(61, 4);
-            this.contextMenuStripAddToBot.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.contextMenuStripAddToBot_ItemClicked);
+            this.contextMenuStripAddToBot.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.ContextMenuStripAddToBot_ItemClicked);
             // 
             // contextMenuStripBot
             // 
