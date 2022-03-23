@@ -1,17 +1,19 @@
 ﻿global using System.Collections;
+global using System.Collections.Concurrent;
 
 namespace AlpacaDashboard;
 
 public class StockList : IEnumerable<IStock>
 {
-    public IList<IStock> stocks = new List<IStock>();
+    public ConcurrentQueue<IStock> Stocks { get; set; } = new();
 
     public StockList()
     {
     }
+
     public StockList(IStock stock)
     {
-        stocks.Add(stock);
+        Stocks.Enqueue(stock);
     }
 
     #region Get Stock methods
@@ -24,7 +26,7 @@ public class StockList : IEnumerable<IStock>
     {
         try
         {
-            return stocks.ToList().Where(x => x.Asset?.Symbol == symbol).FirstOrDefault();
+            return Stocks.Where(x => x.Asset?.Symbol == symbol).FirstOrDefault();
         }
         catch { return null; }
     }
@@ -37,8 +39,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IStock? GetStock(IAsset asset)
     {
-        var stock = stocks.ToList().Where(x => x.Asset?.Symbol == asset.Symbol).FirstOrDefault();
-        return stock;
+        return Stocks.Where(x => x.Asset?.Symbol == asset.Symbol).FirstOrDefault();
     }
 
     /// <summary>
@@ -47,7 +48,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IStock> GetStocks()
     {
-        return stocks.ToList();
+        return Stocks;
     }
 
     /// <summary>
@@ -57,7 +58,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IStock> GetStocks(IEnumerable<string> symbols)
     {
-        return stocks.ToList().Where(a => symbols.Any(s => s == a.Asset?.Symbol));
+        return Stocks.Where(a => symbols.Any(s => s == a.Asset?.Symbol));
     }
 
     /// <summary>
@@ -67,8 +68,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IStock> GetStocks(AssetClass assetClass)
     {
-        var stockList = stocks.ToList().Where(x => x.Asset?.Class == assetClass);
-        return stockList;
+        return Stocks.Where(x => x.Asset?.Class == assetClass);
     }
 
     /// <summary>
@@ -79,8 +79,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IStock> GetStocks(AssetClass assetClass, IEnumerable<string> symbols)
     {
-        var stockList = stocks.ToList().Where(x => x.Asset?.Class == assetClass && symbols.Any(s => s == x.Asset.Symbol));
-        return stockList;
+        return Stocks.Where(x => x.Asset?.Class == assetClass && symbols.Any(s => s == x.Asset.Symbol));
     }
     #endregion
 
@@ -91,7 +90,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IAsset?> GetAssets()
     {
-        return stocks.Select(x => x.Asset);
+        return Stocks.Select(x => x.Asset);
     }
 
     /// <summary>
@@ -101,7 +100,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IAsset?> GetAssets(IEnumerable<string> symbols)
     {
-        return stocks.Where(a => symbols.Any(s => s == a.Asset?.Symbol)).Select(x => x.Asset);
+        return Stocks.Where(a => symbols.Any(s => s == a.Asset?.Symbol)).Select(x => x.Asset);
     }
 
     /// <summary>
@@ -111,7 +110,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IAsset?> GetAssets(AssetClass assetClass)
     {
-        return stocks.Where(x => x.Asset?.Class == assetClass).Select(x => x.Asset);
+        return Stocks.Where(x => x.Asset?.Class == assetClass).Select(x => x.Asset);
     }
 
     /// <summary>
@@ -122,7 +121,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<IAsset?> GetAssets(AssetClass assetClass, IEnumerable<string> symbols)
     {
-        return stocks.Where(x => x.Asset?.Class == assetClass && symbols.Any(s => s == x.Asset.Symbol)).Select(x => x.Asset);
+        return Stocks.Where(x => x.Asset?.Class == assetClass && symbols.Any(s => s == x.Asset.Symbol)).Select(x => x.Asset);
     }
     #endregion
 
@@ -134,7 +133,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerable<string?> GetSymbols(AssetClass assetClass)
     {
-        var symbolList = stocks.ToList().Where(x => x.Asset?.Class == assetClass).Select(x => x.Asset?.Symbol);
+        var symbolList = Stocks.ToList().Where(x => x.Asset?.Class == assetClass).Select(x => x.Asset?.Symbol);
         return symbolList;
     }
     #endregion
@@ -145,7 +144,7 @@ public class StockList : IEnumerable<IStock>
     /// <param name="stock"></param>
     public void Add(Stock stock)
     {
-        stocks.Add(stock);
+        Stocks.Enqueue(stock);
     }
 
     #region enumerator methods
@@ -155,7 +154,7 @@ public class StockList : IEnumerable<IStock>
     /// <returns></returns>
     public IEnumerator<IStock> GetEnumerator()
     {
-        foreach (Stock stock in stocks)
+        foreach (Stock stock in Stocks)
         {
             yield return stock;
         }

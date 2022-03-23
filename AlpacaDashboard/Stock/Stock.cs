@@ -5,6 +5,7 @@ public class Stock : IStock
     public static Broker Broker { get; set; } = default!;
     public static StockList PaperStockObjects = new();
     public static StockList LiveStockObjects = new();
+    public static StockList StockObjects = new();
     public IAsset? Asset { get; set; }
     public IQuote? Quote { get; set; }
     public ITrade? Trade { get; set; }
@@ -17,9 +18,10 @@ public class Stock : IStock
 
     public Stock(Broker broker, IAsset asset, string type)
     {
-        this.Asset = asset;
-        this.Tag = type;
+        Asset = asset;
+        Tag = type;
 
+        /*
         IStock? stock = null;
         if (broker.Environment == TradingEnvironment.Live)
         {
@@ -29,6 +31,7 @@ public class Stock : IStock
                 LiveStockObjects.Add(this);
             }
         }
+
         if (broker.Environment == TradingEnvironment.Paper && PaperStockObjects != null)
         {
             stock = PaperStockObjects.GetStock(asset.Symbol);
@@ -37,6 +40,13 @@ public class Stock : IStock
             {
                 PaperStockObjects.Add(this);
             }
+        }
+        */
+
+        var stock = StockObjects.GetStock(asset.Symbol);
+        if (stock == null)
+        {
+            StockObjects.Add(this);
         }
     }
 
@@ -149,7 +159,7 @@ public class Stock : IStock
         IAlpacaDataSubscription<IBar>? barSubscription = null;
         IAlpacaDataSubscription<IQuote>? quoteSubscription = null;
 
-        foreach (IAsset asset in assets)
+        foreach (var asset in assets)
         {
             if (Broker.Environment == TradingEnvironment.Live)
             {
@@ -167,6 +177,12 @@ public class Stock : IStock
                 {
                     stock = new Stock(broker, asset, watchListCategory);
                 }
+            }
+
+            var stockObject = StockObjects.GetStock(asset.Symbol);
+            if (stockObject == null)
+            {
+                stockObject = new Stock(broker, asset, watchListCategory);
             }
         }
 
@@ -253,8 +269,8 @@ public class Stock : IStock
                         barSubscription.Received += UsEquityPaperMinAggrSubscription_Received;
                         await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
 
-                        IEnumerable<IStock> usEquityStocks = PaperStockObjects.GetStocks(AssetClass.UsEquity, symbols);
-                        foreach (Stock stock in usEquityStocks)
+                        var usEquityStocks = PaperStockObjects.GetStocks(AssetClass.UsEquity, symbols);
+                        foreach (var stock in usEquityStocks)
                         {
                             stock.subscribed = true;
                         }
@@ -313,11 +329,11 @@ public class Stock : IStock
                 {
                     //get all snapshots (not used as quotes are subscribed)
                     await UpdateStocksWithSnapshots(TradingEnvironment.Paper).ConfigureAwait(false);
-                    await UpdateStocksWithSnapshots(TradingEnvironment.Live).ConfigureAwait(false);
+                    //await UpdateStocksWithSnapshots(TradingEnvironment.Live).ConfigureAwait(false);
                 }
                 //update and raise event for GUI
                 GenerateStockUpdatedEvent(TradingEnvironment.Paper);
-                GenerateStockUpdatedEvent(TradingEnvironment.Live);
+                //GenerateStockUpdatedEvent(TradingEnvironment.Live);
 
                 //delay for the UnScibscribedRefreshInterval 
                 await Task.Delay(TimeSpan.FromSeconds(interval), token).ConfigureAwait(false);
@@ -339,6 +355,7 @@ public class Stock : IStock
             assets = LiveStockObjects.GetAssets();
         if (environment == TradingEnvironment.Paper)
             assets = PaperStockObjects.GetAssets();
+        assets = StockObjects.GetAssets();
 
         if (assets != null)
         {
@@ -351,6 +368,8 @@ public class Stock : IStock
                     stock = LiveStockObjects.GetStock(symbolAndSnapshot.Key);
                 if (environment == TradingEnvironment.Paper)
                     stock = PaperStockObjects.GetStock(symbolAndSnapshot.Key);
+                stock = StockObjects.GetStock(symbolAndSnapshot.Key);
+
                 if (stock != null)
                 {
                     stock.Quote = symbolAndSnapshot.Value?.Quote;
@@ -366,6 +385,7 @@ public class Stock : IStock
                     stock = LiveStockObjects.GetStock(symbolAndTrades.Key);
                 if (environment == TradingEnvironment.Paper)
                     stock = PaperStockObjects.GetStock(symbolAndTrades.Key);
+                stock = StockObjects.GetStock(symbolAndTrades.Key);
                 if (stock != null)
                 {
                     stock.Trade = symbolAndTrades.Value;
@@ -524,9 +544,10 @@ public class Stock : IStock
     /// </summary>
     static public event EventHandler PaperStockUpdated = default!;
     static public event EventHandler LiveStockUpdated = default!;
+    static public event EventHandler StockUpdated = default!;
 
     /// <summary>
-    /// Invoke stok updated event
+    /// Invoke paper stock updated event
     /// </summary>
     /// <param name="e"></param>
     static protected void OnPaperStockUpdatedEvent(EventArgs e)
@@ -535,12 +556,21 @@ public class Stock : IStock
     }
 
     /// <summary>
-    /// Invoke stok updated event
+    /// Invoke live stock updated event
     /// </summary>
     /// <param name="e"></param>
     static protected void OnLiveStockUpdatedEvent(EventArgs e)
     {
         LiveStockUpdated(null, e);
+    }
+
+    /// <summary>
+    /// Invoke stock updated event
+    /// </summary>
+    /// <param name="e"></param>
+    static protected void OnStockUpdatedEvent(EventArgs e)
+    {
+        StockUpdated(null, e);
     }
 
     /// <summary>
@@ -551,6 +581,7 @@ public class Stock : IStock
     {
         try
         {
+            /*
             IEnumerable<IStock>? stockObjects = null;
             if (environment == TradingEnvironment.Live)
             {
@@ -570,6 +601,16 @@ public class Stock : IStock
                 };
                 OnPaperStockUpdatedEvent(suea);
             }
+            */
+
+            // my custom event code
+            var stocks = StockObjects.GetStocks();
+            StockUpdatedEventArgs stockEventArgs = new()
+            {
+                Stocks = stocks,
+                Environment = environment
+            };
+            OnStockUpdatedEvent(stockEventArgs);
         }
         catch (Exception ex)
         {

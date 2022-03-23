@@ -436,8 +436,9 @@ public partial class AlpacaDashboard : Form
         #endregion
 
         //event to receive price updates
-        Stock.PaperStockUpdated += PaperStock_StockUpdated;
-        Stock.LiveStockUpdated += LiveStock_StockUpdated;
+        //Stock.PaperStockUpdated += PaperStock_StockUpdated;
+        //Stock.LiveStockUpdated += LiveStock_StockUpdated;
+        Stock.StockUpdated += Stock_StockUpdated;
 
         //subscribe min bar for all symbol
         if (_mySettings.Value.Subscribed)
@@ -458,6 +459,7 @@ public partial class AlpacaDashboard : Form
         toolStripMenuItemPortfolio.PerformClick();
 
     }
+
     #endregion
 
     #region Event 
@@ -499,6 +501,61 @@ public partial class AlpacaDashboard : Form
     #endregion
 
     #region Stock Price Update Logic
+
+    /// <summary>
+    /// event handler for Stock data updated
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    private void Stock_StockUpdated(object? sender, EventArgs e)
+    {
+        try
+        {
+            ListView? scannerListView = null;
+            tabControlScanners.Invoke(new MethodInvoker(delegate ()
+            {
+                var instances = (Dictionary<string, IScanner>)tabControlScanners.SelectedTab.Tag;
+                var instance = instances[Environment.ToString()];
+                var sc = (SplitContainer)instance.UiContainer;
+                scannerListView = (ListView)sc.Panel1.Controls[0];
+            }));
+
+            ListView? botListView = null;
+            tabControlBots.Invoke(new MethodInvoker(delegate ()
+            {
+                var instances = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
+                var instance = instances[Environment.ToString()];
+                var sc = (SplitContainer)instance.UiContainer;
+                botListView = (ListView)sc.Panel1.Controls[0];
+            }));
+
+            var stocks = ((StockUpdatedEventArgs)e).Stocks;
+
+            if (stocks != null)
+            {
+                foreach (var stock in stocks)
+                {
+                    //update order box stock
+                    UpdateOrderBoxPrices(stock);
+
+                    //update portfolio position listview
+                    UpdateListViewPositionsPrices(listViewPositions, stock);
+
+                    //update portfolio watchlist listview
+                    UpdateListViewWatchListsQuote(listViewWatchList, stock);
+
+                    //update scanner selected tab watchlist
+                    if (scannerListView != null)
+                        UpdateListViewWatchListsQuote(scannerListView, stock);
+
+                    //update bot selected tab positions
+                    if (botListView != null)
+                        UpdateListViewPositionsPrices(botListView, stock);
+                }
+            }
+        }
+        catch { }
+    }
 
     /// <summary>
     /// event handler for Paper Stock data updated
@@ -2158,7 +2215,7 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private async void contextMenuStripAddToBot_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+    private async void ContextMenuStripAddToBot_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
     {
         try
         {
