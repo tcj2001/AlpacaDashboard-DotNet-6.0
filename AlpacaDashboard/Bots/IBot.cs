@@ -1,4 +1,5 @@
 ﻿global using AlpacaDashboard.Brokers;
+global using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace AlpacaDashboard;
 

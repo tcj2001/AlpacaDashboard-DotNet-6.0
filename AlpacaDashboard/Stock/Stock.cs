@@ -79,15 +79,15 @@ public class Stock : IStock
                 {
                     tradeSubscription = Broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbol);
                     tradeSubscription.Received += CryptoTradeSubscription_Received;
-                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
+                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
 
                     quoteSubscription = Broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbol);
                     quoteSubscription.Received += CryptoQuoteSubscription_Received;
-                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
+                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
 
                     barSubscription = Broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbol);
                     barSubscription.Received += CryptoMinAggrSubscription_Received;
-                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
+                    await Broker.alpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
                 }
 
                 if (broker.Environment == "Live")
@@ -97,15 +97,15 @@ public class Stock : IStock
                     {
                         tradeSubscription = broker.alpacaDataStreamingClient.GetTradeSubscription(symbol);
                         tradeSubscription.Received += UsEquityLiveTradeSubscription_Received;
-                        await broker.alpacaDataStreamingClient.SubscribeAsync(tradeSubscription);
+                        await broker.alpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
 
                         quoteSubscription = broker.alpacaDataStreamingClient.GetQuoteSubscription(symbol);
                         quoteSubscription.Received += UsEquityLiveQuoteSubscription_Received;
-                        await broker.alpacaDataStreamingClient.SubscribeAsync(quoteSubscription);
+                        await broker.alpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
 
                         barSubscription = broker.alpacaDataStreamingClient.GetMinuteBarSubscription(symbol);
                         barSubscription.Received += UsEquityLiveMinAggrSubscription_Received;
-                        await broker.alpacaDataStreamingClient.SubscribeAsync(barSubscription);
+                        await broker.alpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
                     }
 
                     if (stock != null)
@@ -118,15 +118,15 @@ public class Stock : IStock
                     {
                         tradeSubscription = broker.alpacaDataStreamingClient.GetTradeSubscription(symbol);
                         tradeSubscription.Received += UsEquityPaperTradeSubscription_Received;
-                        await broker.alpacaDataStreamingClient.SubscribeAsync(tradeSubscription);
+                        await broker.alpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
 
                         quoteSubscription = broker.alpacaDataStreamingClient.GetQuoteSubscription(symbol);
                         quoteSubscription.Received += UsEquityPaperQuoteSubscription_Received;
-                        await broker.alpacaDataStreamingClient.SubscribeAsync(quoteSubscription);
+                        await broker.alpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
 
                         barSubscription = broker.alpacaDataStreamingClient.GetMinuteBarSubscription(symbol);
                         barSubscription.Received += UsEquityPaperMinAggrSubscription_Received;
-                        await broker.alpacaDataStreamingClient.SubscribeAsync(barSubscription);
+                        await broker.alpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
                     }
 
                     if (stock != null)

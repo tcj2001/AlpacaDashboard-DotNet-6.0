@@ -4,8 +4,6 @@ internal class ScannerAboveVolume : IScanner
 {
 
     #region Required
-    //define public properites that need to dynamically generate input controls, Broker will be ignored
-
     //Broker Environment
     public Broker Broker { get; set; } = default!;
 
@@ -41,7 +39,7 @@ internal class ScannerAboveVolume : IScanner
     }
     #endregion
 
-    //Define all other field that need to shown on the UI
+    #region properites that will be shown on UI
     //Minimum close
     private decimal _minClose = 3;
     public decimal MinClose { get => _minClose; set => _minClose = value; }
@@ -53,9 +51,7 @@ internal class ScannerAboveVolume : IScanner
     //Minimum volume
     private decimal _minVolume = 1000000;
     public decimal MinVolume { get => _minVolume; set => _minVolume = value; }
-
-    //Define all other field that need to shown on the UI
-    //none
+    #endregion
 
 
     public ScannerAboveVolume(Broker broker)
