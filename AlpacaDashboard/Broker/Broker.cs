@@ -3,6 +3,8 @@ global using Alpaca.Markets.Extensions;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using AlpacaEnvironment = Alpaca.Markets.Environments;
+global using AlpacaDashboard.Enums;
+global using static AlpacaDashboard.Helpers.DateHelper;
 
 namespace AlpacaDashboard.Brokers;
 
@@ -16,11 +18,11 @@ public class Broker : IDisposable
     private string secret;
     public bool subscribed;
 
-    public IAlpacaTradingClient alpacaTradingClient { get; set; } = default!;
+    public IAlpacaTradingClient AlpacaTradingClient { get; set; } = default!;
 
-    public IAlpacaDataClient alpacaDataClient { get; set; } = default!;
-    public IAlpacaDataStreamingClient alpacaDataStreamingClient { get; set; } = default!;
-    public IAlpacaStreamingClient alpacaStreamingClient { get; set; } = default!;
+    public IAlpacaDataClient AlpacaDataClient { get; set; } = default!;
+    public IAlpacaDataStreamingClient AlpacaDataStreamingClient { get; set; } = default!;
+    public IAlpacaStreamingClient AlpacaStreamingClient { get; set; } = default!;
 
     private SecretKey secretKey;
 
@@ -32,14 +34,14 @@ public class Broker : IDisposable
     private IReadOnlyList<ICalendar> MarketCalendar { get; set; } = default!;
 
     private CancellationToken token;
-    public string Environment { get; set; }
+    public TradingEnvironment Environment { get; set; }
 
     public CryptoExchange SelectedCryptoExchange { get; set; }
 
-    static public IAlpacaCryptoDataClient alpacaCryptoDataClient { get; set; } = default!;
-    static public IAlpacaCryptoStreamingClient alpacaCryptoStreamingClient { get; set; } = default!;
+    static public IAlpacaCryptoDataClient AlpacaCryptoDataClient { get; set; } = default!;
+    static public IAlpacaCryptoStreamingClient AlpacaCryptoStreamingClient { get; set; } = default!;
     static bool CryptoConnected = false;
-    static string CryptoConnectedEnvironment = "";
+    static TradingEnvironment CryptoConnectedEnvironment { get; set; }
 
     #endregion
 
@@ -53,7 +55,7 @@ public class Broker : IDisposable
     /// <param name="live"></param>
     /// <param name="mySetting"></param>
     /// <param name="logger"></param>
-    public Broker(CancellationToken token, string key, string secret, string environment, IOptions<MySettings> mySetting, ILogger logger)
+    public Broker(string key, string secret, TradingEnvironment environment, IOptions<MySettings> mySetting, ILogger logger, CancellationToken token)
     {
         this.token = token;
         _logger = logger;
@@ -70,28 +72,28 @@ public class Broker : IDisposable
 
         secretKey = new(key, secret);
 
-        if (Environment == "Live")
+        if (Environment == TradingEnvironment.Live)
         {
-            alpacaTradingClient = AlpacaEnvironment.Live.GetAlpacaTradingClient(secretKey);
-            alpacaDataClient = AlpacaEnvironment.Live.GetAlpacaDataClient(secretKey);
+            AlpacaTradingClient = AlpacaEnvironment.Live.GetAlpacaTradingClient(secretKey);
+            AlpacaDataClient = AlpacaEnvironment.Live.GetAlpacaDataClient(secretKey);
 
             //connect only in one environment
             if (!CryptoConnected)
             {
-                alpacaCryptoDataClient = AlpacaEnvironment.Live.GetAlpacaCryptoDataClient(secretKey);
+                AlpacaCryptoDataClient = AlpacaEnvironment.Live.GetAlpacaCryptoDataClient(secretKey);
                 CryptoConnectedEnvironment = Environment;
                 CryptoConnected = true;
             }
         }
-        if (Environment == "Paper")
+        if (Environment == TradingEnvironment.Paper)
         {
-            alpacaTradingClient = AlpacaEnvironment.Paper.GetAlpacaTradingClient(secretKey);
-            alpacaDataClient = AlpacaEnvironment.Paper.GetAlpacaDataClient(secretKey);
+            AlpacaTradingClient = AlpacaEnvironment.Paper.GetAlpacaTradingClient(secretKey);
+            AlpacaDataClient = AlpacaEnvironment.Paper.GetAlpacaDataClient(secretKey);
 
             //connect only in one environment
             if (!CryptoConnected)
             {
-                alpacaCryptoDataClient = AlpacaEnvironment.Paper.GetAlpacaCryptoDataClient(secretKey);
+                AlpacaCryptoDataClient = AlpacaEnvironment.Paper.GetAlpacaCryptoDataClient(secretKey);
                 CryptoConnectedEnvironment = Environment;
                 CryptoConnected = true;
             }
@@ -100,51 +102,49 @@ public class Broker : IDisposable
         //streaming client
         if (subscribed)
         {
-            if (Environment == "Live")
+            if (Environment == TradingEnvironment.Live)
             {
                 // Connect to Alpaca's websocket and listen for updates on our orders.
-                alpacaStreamingClient = AlpacaEnvironment.Live.GetAlpacaStreamingClient(secretKey).WithReconnect();
+                AlpacaStreamingClient = AlpacaEnvironment.Live.GetAlpacaStreamingClient(secretKey).WithReconnect();
 
                 // Connect to Alpaca's websocket and listen for price updates.
-                alpacaDataStreamingClient = AlpacaEnvironment.Live.GetAlpacaDataStreamingClient(secretKey).WithReconnect();
+                AlpacaDataStreamingClient = AlpacaEnvironment.Live.GetAlpacaDataStreamingClient(secretKey).WithReconnect();
 
                 //connect only in one environment
                 if (CryptoConnectedEnvironment == Environment)
-                    alpacaCryptoStreamingClient = AlpacaEnvironment.Live.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
+                    AlpacaCryptoStreamingClient = AlpacaEnvironment.Live.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
             }
-            if (Environment == "Paper")
+            if (Environment == TradingEnvironment.Paper)
             {
                 // Connect to Alpaca's websocket and listen for updates on our orders.
-                alpacaStreamingClient = AlpacaEnvironment.Paper.GetAlpacaStreamingClient(secretKey).WithReconnect();
+                AlpacaStreamingClient = AlpacaEnvironment.Paper.GetAlpacaStreamingClient(secretKey).WithReconnect();
 
                 // Connect to Alpaca's websocket and listen for price updates.
-                alpacaDataStreamingClient = AlpacaEnvironment.Paper.GetAlpacaDataStreamingClient(secretKey).WithReconnect();
+                AlpacaDataStreamingClient = AlpacaEnvironment.Paper.GetAlpacaDataStreamingClient(secretKey).WithReconnect();
 
                 //connect only in one environment
                 if (CryptoConnectedEnvironment == Environment)
-                    alpacaCryptoStreamingClient = AlpacaEnvironment.Paper.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
+                    AlpacaCryptoStreamingClient = AlpacaEnvironment.Paper.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
             }
 
             //Streaming client event
-            alpacaStreamingClient.OnTradeUpdate += AlpacaStreamingClient_OnTradeUpdate;
-            alpacaStreamingClient.OnError += AlpacaStreamingClient_OnError;
-            alpacaStreamingClient.OnWarning += AlpacaStreamingClient_OnWarning;
+            AlpacaStreamingClient.OnTradeUpdate += AlpacaStreamingClient_OnTradeUpdate;
+            AlpacaStreamingClient.OnError += AlpacaStreamingClient_OnError;
+            AlpacaStreamingClient.OnWarning += AlpacaStreamingClient_OnWarning;
 
             //Data Streaming client event
-            alpacaDataStreamingClient.OnError += AlpacaDataStreamingClient_OnError;
-            alpacaDataStreamingClient.OnWarning += AlpacaDataStreamingClient_OnWarning;
-            alpacaDataStreamingClient.Connected += AlpacaDataStreamingClient_Connected;
-            alpacaDataStreamingClient.SocketOpened += AlpacaDataStreamingClient_SocketOpened;
-            alpacaDataStreamingClient.SocketClosed += AlpacaDataStreamingClient_SocketClosed;
+            AlpacaDataStreamingClient.OnError += AlpacaDataStreamingClient_OnError;
+            AlpacaDataStreamingClient.OnWarning += AlpacaDataStreamingClient_OnWarning;
+            AlpacaDataStreamingClient.Connected += AlpacaDataStreamingClient_Connected;
+            AlpacaDataStreamingClient.SocketOpened += AlpacaDataStreamingClient_SocketOpened;
+            AlpacaDataStreamingClient.SocketClosed += AlpacaDataStreamingClient_SocketClosed;
 
-            alpacaCryptoStreamingClient.OnError += AlpacaCryptoStreamingClient_OnError;
-            alpacaCryptoStreamingClient.OnWarning += AlpacaCryptoStreamingClient_OnWarning;
-            alpacaCryptoStreamingClient.Connected += AlpacaCryptoStreamingClient_Connected;
-            alpacaCryptoStreamingClient.SocketOpened += AlpacaCryptoStreamingClient_SocketOpened;
-            alpacaCryptoStreamingClient.SocketClosed += AlpacaCryptoStreamingClient_SocketClosed;
+            AlpacaCryptoStreamingClient.OnError += AlpacaCryptoStreamingClient_OnError;
+            AlpacaCryptoStreamingClient.OnWarning += AlpacaCryptoStreamingClient_OnWarning;
+            AlpacaCryptoStreamingClient.Connected += AlpacaCryptoStreamingClient_Connected;
+            AlpacaCryptoStreamingClient.SocketOpened += AlpacaCryptoStreamingClient_SocketOpened;
+            AlpacaCryptoStreamingClient.SocketClosed += AlpacaCryptoStreamingClient_SocketClosed;
         }
-
-        //GetMarketOpenClose().GetAwaiter().GetResult();
     }
 
     #endregion
@@ -159,13 +159,13 @@ public class Broker : IDisposable
         if (subscribed)
         {
             //connect
-            await alpacaStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false); 
-            await alpacaDataStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false); 
+            await AlpacaStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
+            await AlpacaDataStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
 
             //connect only in one environment
             if (CryptoConnectedEnvironment == Environment)
             {
-                await alpacaCryptoStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false); 
+                await AlpacaCryptoStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
             }
         }
     }
@@ -200,7 +200,7 @@ public class Broker : IDisposable
         if (obj.ToString() == "Authorized")
         {
             //update for the first time after authorized
-            await UpdateEnviromentData().ConfigureAwait(false); 
+            await UpdateEnviromentData().ConfigureAwait(false);
         }
     }
     private void AlpacaDataStreamingClient_SocketClosed()
@@ -237,35 +237,6 @@ public class Broker : IDisposable
     }
     #endregion
 
-    #region Market Methods
-    /// <summary>
-    /// Get the market open close time
-    /// </summary>
-    /// <returns></returns>
-    public async Task<IReadOnlyList<ICalendar>> GetMarketOpenClose()
-    {
-        var today = DateTime.Today;
-        var interval = today.AddDays(-2).GetInclusiveIntervalFromThat().WithInto(today);
-        var calendar = await alpacaTradingClient.ListCalendarAsync(new CalendarRequest().SetTimeInterval(interval), token).ConfigureAwait(false); 
-        var calendarDate = calendar.Last().TradingOpenTimeEst;
-        var closingTime = calendar.Last().TradingCloseTimeEst;
-        MarketCalendar = calendar;
-        return calendar;
-    }
-
-    /// <summary>
-    /// can be used to wait till the market open
-    /// </summary>
-    /// <returns></returns>
-    private async Task AwaitMarketOpen()
-    {
-        while (!(await alpacaTradingClient.GetClockAsync(token)).IsOpen)
-        {
-            await Task.Delay(60000);
-        }
-    }
-    #endregion
-
     #region Order Handling Methods
 
     /// <summary>
@@ -285,10 +256,11 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task DeleteOpenOrders(string symbol)
     {
-        var orders = await alpacaTradingClient.ListOrdersAsync(new ListOrdersRequest(), token).ConfigureAwait(false);
-        foreach (var order in orders.ToList())
+        var orders = await AlpacaTradingClient.ListOrdersAsync(new ListOrdersRequest(), token).ConfigureAwait(false);
+
+        foreach (var order in orders)
         {
-            await alpacaTradingClient.DeleteOrderAsync(order.OrderId, token).ConfigureAwait(false);
+            await AlpacaTradingClient.DeleteOrderAsync(order.OrderId, token).ConfigureAwait(false);
         }
     }
 
@@ -313,24 +285,23 @@ public class Broker : IDisposable
             switch (orderType)
             {
                 case OrderType.Market:
-                    message = $"Market {orderSide.ToString()} of {quantity.Value.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await alpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours }).ConfigureAwait(false);
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours }).ConfigureAwait(false);
                     break;
                 case OrderType.Limit:
-                    message = $"Limit {orderSide.ToString()} of {quantity.Value.ToString()} @ {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await alpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, LimitPrice = limitPrice }).ConfigureAwait(false);
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, 
+                        LimitPrice = limitPrice }).ConfigureAwait(false);
                     break;
                 case OrderType.Stop:
-                    message = $"Stop {orderSide.ToString()} of {quantity.Value.ToString()} @ stop price: {stopPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await alpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice }).ConfigureAwait(false);
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, 
+                        StopPrice = stopPrice }).ConfigureAwait(false);
                     break;
                 case OrderType.StopLimit:
-                    message = $"StopLimit {orderSide.ToString()} of {quantity.Value.ToString()} @ stop price {stopPrice.ToString()} and limit price {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await alpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, LimitPrice = limitPrice }).ConfigureAwait(false);
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, 
+                        StopPrice = stopPrice, LimitPrice = limitPrice }).ConfigureAwait(false);
                     break;
                 case OrderType.TrailingStop:
-                    message = $"TrailingStop {orderSide.ToString()} of {quantity.Value.ToString()} @ stop price: {stopPrice.ToString()} and trailing {trailOffsetDollars.ToString()} {trailOffsetPercentage.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await alpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, 
+                        StopPrice = stopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
                     break;
             }
             return (order, message);
@@ -359,7 +330,7 @@ public class Broker : IDisposable
         }
         try
         {
-            var order = await alpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, price), token).ConfigureAwait(false);
+            var order = await AlpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, price), token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -383,7 +354,7 @@ public class Broker : IDisposable
         }
         try
         {
-            var order = await alpacaTradingClient.PostOrderAsync(orderSide.Market(symbol, quantity), token).ConfigureAwait(false);
+            var order = await AlpacaTradingClient.PostOrderAsync(orderSide.Market(symbol, quantity), token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -400,17 +371,16 @@ public class Broker : IDisposable
     {
         try
         {
-            var positionQuantity = (await alpacaTradingClient.GetPositionAsync(symbol)).IntegerQuantity;
+            var positionQuantity = (await AlpacaTradingClient.GetPositionAsync(symbol).ConfigureAwait(false)).IntegerQuantity;
+
             Console.WriteLine("Symbol {1}, Closing position at market price.", symbol);
             if (positionQuantity > 0)
             {
-                await alpacaTradingClient.PostOrderAsync(
-                    OrderSide.Sell.Market(symbol, positionQuantity), token);
+                await AlpacaTradingClient.PostOrderAsync(OrderSide.Sell.Market(symbol, positionQuantity), token).ConfigureAwait(false);
             }
             else
             {
-                await alpacaTradingClient.PostOrderAsync(
-                    OrderSide.Buy.Market(symbol, Math.Abs(positionQuantity)), token);
+                await AlpacaTradingClient.PostOrderAsync(OrderSide.Buy.Market(symbol, Math.Abs(positionQuantity)), token).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -433,11 +403,12 @@ public class Broker : IDisposable
             if (asset.Class == AssetClass.Crypto)
             {
                 var ldr = new LatestDataRequest(symbol, SelectedCryptoExchange);
-                return await alpacaCryptoDataClient.GetLatestTradeAsync(ldr, token).ConfigureAwait(false);
+
+                return await AlpacaCryptoDataClient.GetLatestTradeAsync(ldr, token).ConfigureAwait(false);
             }
             if (asset.Class == AssetClass.UsEquity)
             {
-                return await alpacaDataClient.GetLatestTradeAsync(symbol, token).ConfigureAwait(false);
+                return await AlpacaDataClient.GetLatestTradeAsync(symbol, token).ConfigureAwait(false);
             }
         }
         catch { }
@@ -460,11 +431,12 @@ public class Broker : IDisposable
             if (asset.Class == AssetClass.Crypto)
             {
                 var ldr = new LatestDataRequest(symbol, SelectedCryptoExchange);
-                return await alpacaCryptoDataClient.GetLatestQuoteAsync(ldr, token).ConfigureAwait(false);
+
+                return await AlpacaCryptoDataClient.GetLatestQuoteAsync(ldr, token).ConfigureAwait(false);
             }
             if (asset.Class == AssetClass.UsEquity)
             {
-                return await alpacaDataClient.GetLatestQuoteAsync(symbol, token).ConfigureAwait(false);
+                return await AlpacaDataClient.GetLatestQuoteAsync(symbol, token).ConfigureAwait(false);
             }
         }
         catch { }
@@ -478,13 +450,14 @@ public class Broker : IDisposable
 
         if (asset.Class == AssetClass.UsEquity)
         {
-            return await alpacaDataClient.GetSnapshotAsync(asset.Symbol, token).ConfigureAwait(false);
+            return await AlpacaDataClient.GetSnapshotAsync(asset.Symbol, token).ConfigureAwait(false);
         }
         if (asset.Class == AssetClass.Crypto)
         {
-            var ieal = asset.Symbol.ToList();
+            //var ieal = asset.Symbol.ToList();
             var sdr = new SnapshotDataRequest(asset.Symbol, SelectedCryptoExchange);
-            return await alpacaCryptoDataClient.GetSnapshotAsync(sdr, token).ConfigureAwait(false);
+
+            return await AlpacaCryptoDataClient.GetSnapshotAsync(sdr, token).ConfigureAwait(false);
         }
 
         return null;
@@ -499,7 +472,7 @@ public class Broker : IDisposable
     {
         try
         {
-            return await alpacaTradingClient.GetPositionAsync(symbol, token).ConfigureAwait(false);
+            return await AlpacaTradingClient.GetPositionAsync(symbol, token).ConfigureAwait(false);
         }
         catch { }
 
@@ -517,6 +490,7 @@ public class Broker : IDisposable
     private async void AlpacaStreamingClient_OnTradeUpdate(ITradeUpdate obj)
     {
         var asset = await GetAsset(obj.Order.Symbol).ConfigureAwait(false);
+
         if (obj.Order.OrderStatus == OrderStatus.Filled || obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
         {
             IStock? stock = null;
@@ -553,7 +527,7 @@ public class Broker : IDisposable
     {
         try
         {
-            return await alpacaTradingClient.GetAccountAsync(token).ConfigureAwait(false);
+            return await AlpacaTradingClient.GetAccountAsync(token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -578,7 +552,6 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdateAccounts()
     {
-
         var account = await GetAccountDetails().ConfigureAwait(false);
 
         AccountUpdatedEventArgs oauea = new()
@@ -596,8 +569,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task<IReadOnlyCollection<IPosition>> ListPositions()
     {
-        var positions = await alpacaTradingClient.ListPositionsAsync(token).ConfigureAwait(false);
-        return positions;
+        return await AlpacaTradingClient.ListPositionsAsync(token).ConfigureAwait(false);
     }
 
     public delegate void PositionUpdatedEventHandler(object sender, PositionUpdatedEventArgs e);
@@ -622,6 +594,7 @@ public class Broker : IDisposable
         {
             Positions = positions
         };
+
         OnPositionUpdated(opuea);
     }
     #endregion
@@ -639,9 +612,10 @@ public class Broker : IDisposable
             OrderStatusFilter = OrderStatusFilter.Closed,
             LimitOrderNumber = 50
         };
-        var orders = await alpacaTradingClient.ListOrdersAsync(request, token).ConfigureAwait(false);
-        return orders;
+
+        return await AlpacaTradingClient.ListOrdersAsync(request, token).ConfigureAwait(false);
     }
+
     public delegate void ClosedOrderUpdatedEventHandler(object sender, ClosedOrderUpdatedEventArgs e);
 
     public event EventHandler ClosedOrderUpdated = default!;
@@ -658,13 +632,13 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdateClosedOrders()
     {
-
         var closedOrders = await ClosedOrders().ConfigureAwait(false);
 
         ClosedOrderUpdatedEventArgs ocouea = new ClosedOrderUpdatedEventArgs
         {
             ClosedOrders = closedOrders
         };
+
         OnClosedOrderUpdated(ocouea);
     }
     #endregion
@@ -681,9 +655,8 @@ public class Broker : IDisposable
         {
             OrderStatusFilter = OrderStatusFilter.Open
         };
-        var orders = await alpacaTradingClient.ListOrdersAsync(request, token).ConfigureAwait(false);
 
-        return orders;
+        return await AlpacaTradingClient.ListOrdersAsync(request, token).ConfigureAwait(false);
     }
 
     public delegate void OpenOrderUpdatedEventHandler(object sender, OpenOrderUpdatedEventArgs e);
@@ -701,13 +674,13 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdateOpenOrders()
     {
-
-        var openOrders = await OpenOrders();
+        var openOrders = await OpenOrders().ConfigureAwait(false);
 
         OpenOrderUpdatedEventArgs ooruea = new OpenOrderUpdatedEventArgs
         {
             OpenOrders = openOrders
         };
+
         OnOpenOrderUpdated(ooruea);
     }
     #endregion
@@ -715,28 +688,30 @@ public class Broker : IDisposable
     #region Watchlist Methods
     public async Task<IWatchList> CreateWatchList(string name, IEnumerable<string> symbols)
     {
-        NewWatchListRequest newWatchListRequest = new NewWatchListRequest(name, symbols);
-        return await alpacaTradingClient.CreateWatchListAsync(newWatchListRequest, token).ConfigureAwait(false);
+        return await AlpacaTradingClient.CreateWatchListAsync(new NewWatchListRequest(name, symbols), token).ConfigureAwait(false);
     }
+
     public async Task<IWatchList> GetWatchList(string name)
     {
-        return await alpacaTradingClient.GetWatchListByNameAsync(name, token).ConfigureAwait(false);
+        return await AlpacaTradingClient.GetWatchListByNameAsync(name, token).ConfigureAwait(false);
     }
+
     public async Task<IWatchList> UpdateWatchList(IWatchList wl, IEnumerable<IAsset> assets)
     {
         var symbols = assets.Select(x => x.Symbol).ToList();
         UpdateWatchListRequest updateWatchListRequest = new UpdateWatchListRequest(wl.WatchListId, wl.Name, symbols);
         return await alpacaTradingClient.UpdateWatchListByIdAsync(updateWatchListRequest, token).ConfigureAwait(false);
     }
+
     public async void DeleteItemFromWatchList(IWatchList wl, IAsset asset)
     {
         ChangeWatchListRequest<Guid> changeWatchListRequest = new ChangeWatchListRequest<Guid>(wl.WatchListId, asset.Symbol);
         await alpacaTradingClient.DeleteAssetFromWatchListByIdAsync(changeWatchListRequest, token).ConfigureAwait(false);
     }
+
     public async void AddItemToWatchList(IWatchList wl, string symbol)
     {
-        ChangeWatchListRequest<Guid> changeWatchListRequest = new ChangeWatchListRequest<Guid>(wl.WatchListId, symbol);
-        await alpacaTradingClient.AddAssetIntoWatchListByIdAsync(changeWatchListRequest, token).ConfigureAwait(false);
+        await AlpacaTradingClient.AddAssetIntoWatchListByIdAsync(new ChangeWatchListRequest<Guid>(wl.WatchListId, symbol), token).ConfigureAwait(false);
     }
     #endregion
 
@@ -755,7 +730,7 @@ public class Broker : IDisposable
             IPosition? position = null;
             try
             {
-                position = await alpacaTradingClient.GetPositionAsync(asset.Symbol, token).ConfigureAwait(false);
+                position = await AlpacaTradingClient.GetPositionAsync(asset.Symbol, token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -843,7 +818,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task<IAsset> GetAsset(string name)
     {
-        return await alpacaTradingClient.GetAssetAsync(name, token).ConfigureAwait(false);
+        return await AlpacaTradingClient.GetAssetAsync(name, token).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -854,8 +829,8 @@ public class Broker : IDisposable
     {
         var ar = new AssetsRequest();
         ar.AssetClass = ac;
-        IReadOnlyList<IAsset> assets = await alpacaTradingClient.ListAssetsAsync(ar, token).ConfigureAwait(false);
-        return assets;
+
+        return await AlpacaTradingClient.ListAssetsAsync(ar, token).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -875,8 +850,9 @@ public class Broker : IDisposable
         //get ISnapshot of stock symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x?.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
-            var stockSnapshots = await alpacaDataClient.ListSnapshotsAsync((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), token).ConfigureAwait(false);
+            var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(assetCount);
+            var stockSnapshots = await AlpacaDataClient.ListSnapshotsAsync(assetSubset.Select(x => x.Symbol), token).ConfigureAwait(false);
+
             foreach (var item in stockSnapshots)
             {
                 var asset = assets.Where(x => x?.Symbol == item.Key).First();
@@ -884,12 +860,14 @@ public class Broker : IDisposable
                     keyValues.Add(asset, item.Value);
             }
         }
+
         //get ISnapshot of crypto symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
         {
             var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
             var sdlr = new SnapshotDataListRequest((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), SelectedCryptoExchange);
-            var cryptoSnapshots = await alpacaCryptoDataClient.ListSnapshotsAsync(sdlr, token).ConfigureAwait(false);
+            var cryptoSnapshots = await AlpacaCryptoDataClient.ListSnapshotsAsync(sdlr, token).ConfigureAwait(false);
+
             foreach (var item in cryptoSnapshots)
             {
                 var asset = assets.Where(x => x?.Symbol == item.Key).First();
@@ -897,6 +875,7 @@ public class Broker : IDisposable
                     keyValues.Add(asset, item.Value);
             }
         }
+
         return keyValues;
     }
 
@@ -918,23 +897,27 @@ public class Broker : IDisposable
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
             var assetSubset = assets.Where(x => x?.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
-            var stockTrades = await alpacaDataClient.ListLatestTradesAsync((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), token).ConfigureAwait(false);
+            var stockTrades = await AlpacaDataClient.ListLatestTradesAsync(assetSubset.Select(x => x.Symbol), token).ConfigureAwait(false);
+
             foreach (var item in stockTrades)
             {
                 keyValues.Add(item.Key, item.Value);
             }
         }
+
         //get ISnapshot of crypto symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
         {
             var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
             var ldlr = new LatestDataListRequest((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), SelectedCryptoExchange);
-            var cryptoSnapshots = await alpacaCryptoDataClient.ListLatestTradesAsync(ldlr, token).ConfigureAwait(false);
+            var cryptoSnapshots = await AlpacaCryptoDataClient.ListLatestTradesAsync(ldlr, token).ConfigureAwait(false);
+
             foreach (var item in cryptoSnapshots)
             {
                 keyValues.Add(item.Key, item.Value);
             }
         }
+
         return keyValues;
     }
 
@@ -996,23 +979,26 @@ public class Broker : IDisposable
         {
             var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
             var historicalBarsRequest = new HistoricalBarsRequest(assetSubset.Select(x => x.Symbol), fromDate, toDate, barTimeFrame);
-            await foreach (var bar in alpacaDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
+
+            await foreach (var bar in AlpacaDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
             {
                 bars.Add(bar);
             }
         }
+
         //get a historical Ibars of crypto symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
         {
             var assetSubset = assets.Where(x => x.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
             var historicalBarsRequest = new HistoricalCryptoBarsRequest(assetSubset.Select(x => x.Symbol), fromDate, toDate, barTimeFrame);
-            await foreach (var bar in alpacaCryptoDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
+
+            await foreach (var bar in AlpacaCryptoDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
             {
                 bars.Add(bar);
             }
         }
-        assetAndBars = bars.GroupBy(x => x.Symbol).ToDictionary(g => assets.Where(a => a.Symbol == g.Key).Select(a => a).First(), g => g.ToList());
-        return assetAndBars;
+
+        return bars.GroupBy(x => x.Symbol).ToDictionary(g => assets.Where(a => a.Symbol == g.Key).Select(a => a).First(), g => g.ToList());
     }
 
     /// <summary>
@@ -1053,13 +1039,13 @@ public class Broker : IDisposable
     /// </summary>
     public void Dispose()
     {
-        alpacaTradingClient?.Dispose();
-        alpacaDataClient?.Dispose();
-        alpacaCryptoDataClient?.Dispose();
+        AlpacaTradingClient?.Dispose();
+        AlpacaDataClient?.Dispose();
+        AlpacaCryptoDataClient?.Dispose();
 
-        alpacaStreamingClient?.Dispose();
-        alpacaDataStreamingClient?.Dispose();
-        alpacaCryptoStreamingClient?.Dispose();
+        AlpacaStreamingClient?.Dispose();
+        AlpacaDataStreamingClient?.Dispose();
+        AlpacaCryptoStreamingClient?.Dispose();
     }
 
     #endregion
