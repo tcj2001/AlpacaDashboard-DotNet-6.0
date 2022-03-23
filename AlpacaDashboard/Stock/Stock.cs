@@ -10,7 +10,6 @@ public class Stock : IStock
     public ITrade? Trade { get; set; }
     public IPosition? Position { get; set; }
     public ITradeUpdate? TradeUpdate { get; set; }
-
     public IBar? MinuteBar { get; set; }
     public bool subscribed { get; set; }
     public static bool MinutesBarSubscribed = false;
@@ -309,7 +308,7 @@ public class Stock : IStock
             {
                 if (!Broker.subscribed)
                 {
-                    //get all snapshots (not used as quotes are subscribed)
+                    //get all snapshots 
                     await UpdateStocksWithSnapshots("Paper").ConfigureAwait(false);
                     await UpdateStocksWithSnapshots("Live").ConfigureAwait(false);
                 }
