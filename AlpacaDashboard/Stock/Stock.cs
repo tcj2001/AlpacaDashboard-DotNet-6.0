@@ -10,7 +10,6 @@ public class Stock : IStock
     public ITrade? Trade { get; set; }
     public IPosition? Position { get; set; }
     public ITradeUpdate? TradeUpdate { get; set; }
-
     public IBar? MinuteBar { get; set; }
     public bool subscribed { get; set; }
     public static bool MinutesBarSubscribed = false;

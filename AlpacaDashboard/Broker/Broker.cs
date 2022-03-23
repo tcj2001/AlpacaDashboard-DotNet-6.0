@@ -254,7 +254,7 @@ public class Broker : IDisposable
     /// </summary>
     /// <param name="symbol"></param>
     /// <returns></returns>
-    public async Task DeleteOpenOrders(string symbol)
+    public async Task DeleteOpenOrders(string? symbol)
     {
         var orders = await AlpacaTradingClient.ListOrdersAsync(new ListOrdersRequest(), token).ConfigureAwait(false);
 
@@ -361,7 +361,6 @@ public class Broker : IDisposable
             _logger.LogInformation($"{Environment}  {ex.Message}");
         }
     }
-
 
     /// <summary>
     /// close a position at market
@@ -493,9 +492,13 @@ public class Broker : IDisposable
 
         if (obj.Order.OrderStatus == OrderStatus.Filled || obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
         {
-            IStock? stock = null;
             await Stock.Subscribe(this, obj.Order.Symbol, "Portfolio").ConfigureAwait(false);
 
+            IStock? stock = null;
+            if (Environment == "Live" && Stock.LiveStockObjects != null)
+                stock = Stock.LiveStockObjects.GetStock(obj.Order.Symbol);
+            if (Environment == "Paper" && Stock.PaperStockObjects != null)
+                stock = Stock.PaperStockObjects.GetStock(obj.Order.Symbol);
             if (stock != null)
             {
                 stock.TradeUpdate = obj;

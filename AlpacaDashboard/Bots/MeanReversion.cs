@@ -136,7 +136,12 @@ internal class MeanReversion : IBot
 
             //get historical bars
             var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
+               
             closingPrices = bars.Select(x => x?.Close).ToList();
+
+            //cancel all existing open orders
+            await Broker.DeleteOpenOrders(stock?.Asset?.Symbol);
+            log.Information($"Closing any open orders for {stock?.Asset?.Symbol}");
 
             //do while its not ended
             while (!token.IsCancellationRequested)
@@ -190,6 +195,8 @@ internal class MeanReversion : IBot
     /// <returns></returns>
     private async Task<IStock?> MeanReversionLogic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
     {
+        if (updatedStock?.MinuteBar == null)
+            return updatedStock;
         var symbol = updatedStock?.Asset?.Symbol;
         var close = updatedStock?.MinuteBar?.Close==null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
         var avg = closingPrices.Average();
@@ -237,7 +244,7 @@ internal class MeanReversion : IBot
         var positionValue = updatedStock?.Position?.MarketValue == null ? 0M : updatedStock?.Position?.MarketValue;
 
         //price is above average
-        if (diff < 0)
+        if (diff <= 0)
         {
             if (positionQuantity > 0)
             {
@@ -266,6 +273,7 @@ internal class MeanReversion : IBot
                         {
                             // We want to expand our existing short position.
                             //get amount to short
+                            amountToShort *= -1;
                             if (amountToShort > account?.BuyingPower)
                             {
                                 amountToShort = (decimal)account.BuyingPower;
