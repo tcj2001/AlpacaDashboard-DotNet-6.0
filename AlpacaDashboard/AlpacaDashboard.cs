@@ -130,21 +130,21 @@ public partial class AlpacaDashboard : Form
             IWatchList? wlLive = null;
             try
             {
-                wlLive = await LiveBroker.GetWatchList(_type.Name).ConfigureAwait(false);
+                wlLive = await LiveBroker.GetWatchList(_type.Name);
             }
             catch (Exception)
             {
-                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
+                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
             }
 
             IWatchList? wlPaper = null;
             try
             {
-                wlPaper = await PaperBroker.GetWatchList(_type.Name).ConfigureAwait(false);
+                wlPaper = await PaperBroker.GetWatchList(_type.Name);
             }
             catch (Exception)
             {
-                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
+                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
             }
 
             //add control dynamically to the scanner page
@@ -289,21 +289,21 @@ public partial class AlpacaDashboard : Form
             IWatchList? wlLive = null;
             try
             {
-                wlLive = await LiveBroker.GetWatchList(_type.Name).ConfigureAwait(false);
+                wlLive = await LiveBroker.GetWatchList(_type.Name);
             }
             catch (Exception)
             {
-                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
+                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
             }
 
             IWatchList? wlPaper = null;
             try
             {
-                wlPaper = await PaperBroker.GetWatchList(_type.Name).ConfigureAwait(false);
+                wlPaper = await PaperBroker.GetWatchList(_type.Name);
             }
             catch (Exception)
             {
-                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
+                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
             }
 
             //add control dynamically to the scanner page
@@ -450,9 +450,9 @@ public partial class AlpacaDashboard : Form
 
         //update environment
         if (Environment == TradingEnvironment.Paper)
-            await PaperBroker.UpdateEnviromentData().ConfigureAwait(false);
+            await PaperBroker.UpdateEnviromentData();
         if (Environment == TradingEnvironment.Live)
-            await LiveBroker.UpdateEnviromentData().ConfigureAwait(false);
+            await LiveBroker.UpdateEnviromentData();
 
         //set up initial environment
         toolStripMenuItemPortfolio.PerformClick();
