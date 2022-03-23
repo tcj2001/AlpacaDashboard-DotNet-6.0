@@ -19,7 +19,7 @@ public partial class AlpacaDashboard : Form
 
     private TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
     private CancellationToken token;
-    private string Environment { get; set; }
+    private TradingEnvironment Environment { get; set; }
     #endregion
 
     #region constructor
@@ -40,9 +40,9 @@ public partial class AlpacaDashboard : Form
 
         InitializeComponent();
 
-        this.Environment = "Paper";
+        this.Environment = TradingEnvironment.Paper;
 
-        if (this.Environment == "Live")
+        if (this.Environment == TradingEnvironment.Live)
         {
             checkBoxLivePaper.Checked = true;
         }
@@ -96,7 +96,7 @@ public partial class AlpacaDashboard : Form
         //live
         if (_liveKey.Value.API_KEY != "")
         {
-            LiveBroker = new Broker(token, _liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, "Live", _mySettings, _logger);
+            LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, token);
             LivePfolioEnableEvents();
             await LiveBroker.Connect();//;
             await LiveBroker.PositionAndOpenOrderAssets();//;
@@ -105,46 +105,46 @@ public partial class AlpacaDashboard : Form
         //paper
         if (_paperKey.Value.API_KEY != "")
         {
-            PaperBroker = new Broker(token, _paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, "Paper", _mySettings, _logger);
+            PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, token);
             PaperPfolioEnableEvents();
             await PaperBroker.Connect();//;
             await PaperBroker.PositionAndOpenOrderAssets();//;
         }
 
         //assign broker to Stock class
-        if (Environment == "Live")
+        if (Environment == TradingEnvironment.Live)
             Stock.Broker = LiveBroker;
-        if (Environment == "Paper")
+        if (Environment == TradingEnvironment.Paper)
             Stock.Broker = PaperBroker;
 
         #region bots auto generated control and events
         //add bot tabs for defined bot classes
         IEnumerable<Type> _bots = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes()).Where(t => t.GetInterfaces().Contains(typeof(IBot)));
+
         foreach (Type _type in _bots)
         {
-
-            TabPage tp = new TabPage(_type.Name);
+            TabPage tp = new(_type.Name);
             tabControlBots.TabPages.Add(tp);
 
             //get or create  watchlist in both environment
             IWatchList? wlLive = null;
             try
             {
-                wlLive = await LiveBroker.GetWatchList(_type.Name);
+                wlLive = await LiveBroker.GetWatchList(_type.Name).ConfigureAwait(false);
             }
             catch (Exception)
             {
-                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
             }
 
             IWatchList? wlPaper = null;
             try
             {
-                wlPaper = await PaperBroker.GetWatchList(_type.Name);
+                wlPaper = await PaperBroker.GetWatchList(_type.Name).ConfigureAwait(false);
             }
             catch (Exception)
             {
-                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
             }
 
             //add control dynamically to the scanner page
@@ -203,7 +203,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.WatchList.Assets;
                     instance.ListOfAssetAndPosition = await PaperBroker.GetPositionsforAssetList(assets);
                     var symbols = instance.ListOfAssetAndPosition.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Bot").ConfigureAwait(false); ;
+                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Bot").ConfigureAwait(false);
                 }
                 instances.Add("Paper", instance);
             }
@@ -279,30 +279,31 @@ public partial class AlpacaDashboard : Form
         #region scanners auto generated control and events
         //add scanner tabs for defined scanners classes
         IEnumerable<Type> _scanners = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes()).Where(t => t.GetInterfaces().Contains(typeof(IScanner)));
+
         foreach (Type _type in _scanners)
         {
-            TabPage tp = new TabPage(_type.Name);
+            TabPage tp = new(_type.Name);
             tabControlScanners.TabPages.Add(tp);
 
             //get or create  watchlist in both environment
             IWatchList? wlLive = null;
             try
             {
-                wlLive = await LiveBroker.GetWatchList(_type.Name);
+                wlLive = await LiveBroker.GetWatchList(_type.Name).ConfigureAwait(false);
             }
             catch (Exception)
             {
-                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
             }
 
             IWatchList? wlPaper = null;
             try
             {
-                wlPaper = await PaperBroker.GetWatchList(_type.Name);
+                wlPaper = await PaperBroker.GetWatchList(_type.Name).ConfigureAwait(false);
             }
             catch (Exception)
             {
-                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>()).ConfigureAwait(false);
             }
 
             //add control dynamically to the scanner page
@@ -311,15 +312,19 @@ public partial class AlpacaDashboard : Form
                 Dock = DockStyle.Fill
             };
             tp.Controls.Add(panel);
-            SplitContainer splitContainer = new SplitContainer();
-            splitContainer.Dock = DockStyle.Fill;
-            splitContainer.Orientation = Orientation.Vertical;
+            SplitContainer splitContainer = new()
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical
+            };
             panel.Controls.Add(splitContainer);
-            ListView listView = new ListView();
-            listView.Name = "listView" + _type.Name;
-            listView.Dock = DockStyle.Fill;
-            listView.View = View.Details;
-            listView.FullRowSelect = true;
+            ListView listView = new()
+            {
+                Name = "listView" + _type.Name,
+                Dock = DockStyle.Fill,
+                View = View.Details,
+                FullRowSelect = true
+            };
 
             //create instance of the scanner class
             Dictionary<string, IScanner> instances = new();
@@ -375,13 +380,15 @@ public partial class AlpacaDashboard : Form
             listView.Columns.Add("AskPrice", 75);
             listView.Columns.Add("AskSize", 75);
             listView.MouseClick += WatchList_MouseClick;
-            TableLayoutPanel tableLayoutPanel = new TableLayoutPanel();
-            tableLayoutPanel.Name = "tableLayoutPanel" + _type.Name;
-            tableLayoutPanel.Dock = DockStyle.Fill;
-            tableLayoutPanel.ColumnCount = 1;
-            tableLayoutPanel.GrowStyle = TableLayoutPanelGrowStyle.AddRows;
-            tableLayoutPanel.AutoSize = true;
-            tableLayoutPanel.AutoScroll = true;
+            TableLayoutPanel tableLayoutPanel = new()
+            {
+                Name = "tableLayoutPanel" + _type.Name,
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                GrowStyle = TableLayoutPanelGrowStyle.AddRows,
+                AutoSize = true,
+                AutoScroll = true
+            };
             tableLayoutPanel.ColumnCount = 2;
             splitContainer.Panel2.Controls.Add(tableLayoutPanel);
 
@@ -396,9 +403,11 @@ public partial class AlpacaDashboard : Form
                     ))
                 {
                     tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-                    Label lb = new Label();
-                    lb.Width = 120;
-                    lb.Text = p.Name;
+                    Label lb = new()
+                    {
+                        Width = 120,
+                        Text = p.Name
+                    };
                     tableLayoutPanel.Controls.Add(lb);
 
                     tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -437,16 +446,16 @@ public partial class AlpacaDashboard : Form
         }
 
         //start a event loop for portfolio and watchlist stock on periodic interval
-        Stock.GenerateEvents(Environment, _mySettings.Value.PriceUpdateInterval, token);
+        Stock.GenerateEvents(_mySettings.Value.PriceUpdateInterval, token);
 
         //update environment
-        if (Environment == "Paper")
-            await PaperBroker.UpdateEnviromentData();
-        if (Environment == "Live")
-            await LiveBroker.UpdateEnviromentData();
+        if (Environment == TradingEnvironment.Paper)
+            await PaperBroker.UpdateEnviromentData().ConfigureAwait(false);
+        if (Environment == TradingEnvironment.Live)
+            await LiveBroker.UpdateEnviromentData().ConfigureAwait(false);
 
         //set up initial environment
-        this.toolStripMenuItemPortfolio.PerformClick();
+        toolStripMenuItemPortfolio.PerformClick();
 
     }
     #endregion
@@ -498,7 +507,7 @@ public partial class AlpacaDashboard : Form
     /// <param name="e"></param>
     private void PaperStock_StockUpdated(object? sender, EventArgs e)
     {
-        if (Environment == "Paper")
+        if (Environment == TradingEnvironment.Paper)
         {
             try
             {
@@ -556,7 +565,7 @@ public partial class AlpacaDashboard : Form
     /// <param name="e"></param>
     private void LiveStock_StockUpdated(object? sender, EventArgs e)
     {
-        if (Environment == "Live")
+        if (Environment == TradingEnvironment.Live)
         {
             try
             {
@@ -564,7 +573,7 @@ public partial class AlpacaDashboard : Form
                 tabControlScanners.Invoke(new MethodInvoker(delegate ()
                 {
                     var instances = (Dictionary<string, IScanner>)tabControlScanners.SelectedTab.Tag;
-                    var instance = instances["Live"];
+                    var instance = instances[Environment.ToString()];
                     var sc = (SplitContainer)instance.UiContainer;
                     scannerListView = (ListView)sc.Panel1.Controls[0];
                 }));
@@ -573,7 +582,7 @@ public partial class AlpacaDashboard : Form
                 tabControlBots.Invoke(new MethodInvoker(delegate ()
                 {
                     var instances = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
-                    var instance = instances["Live"];
+                    var instance = instances[Environment.ToString()];
                     var sc = (SplitContainer)instance.UiContainer;
                     botListView = (ListView)sc.Panel1.Controls[0];
                 }));
@@ -678,7 +687,7 @@ public partial class AlpacaDashboard : Form
 
         if (positions != null)
         {
-            UpdateListViewPositions("Live", positions);
+            UpdateListViewPositions(TradingEnvironment.Live, positions);
         }
 
         var reqsymbol = await LiveBroker.PositionAndOpenOrderAssets();
@@ -696,7 +705,7 @@ public partial class AlpacaDashboard : Form
 
         if (positions != null)
         {
-            UpdateListViewPositions("Paper", positions);
+            UpdateListViewPositions(TradingEnvironment.Paper, positions);
         }
 
         var reqsymbol = await PaperBroker.PositionAndOpenOrderAssets();
@@ -707,23 +716,25 @@ public partial class AlpacaDashboard : Form
     /// load position listview
     /// </summary>
     /// <param name="positions"></param>
-    private void UpdateListViewPositions(string environment, IReadOnlyCollection<IPosition> positions)
+    private void UpdateListViewPositions(TradingEnvironment environment, IReadOnlyCollection<IPosition> positions)
     {
         listViewPositions.Invoke(new MethodInvoker(delegate () { listViewPositions.Items.Clear(); }));
-        foreach (var pos in positions.ToList())
+
+        foreach (var pos in positions)
         {
             try
             {
                 IStock? stock = null;
-                if (environment == "Live" && Stock.LiveStockObjects != null)
+                if (environment == TradingEnvironment.Live && Stock.LiveStockObjects != null)
                     stock = Stock.LiveStockObjects.GetStock(pos.Symbol);
-                if (environment == "Paper" && Stock.PaperStockObjects != null)
+                if (environment == TradingEnvironment.Paper && Stock.PaperStockObjects != null)
                     stock = Stock.PaperStockObjects.GetStock(pos.Symbol);
+
                 if (stock != null)
                 {
                     stock.Position = pos;
                 }
-                ListViewItem item = new ListViewItem(pos.Symbol);
+                ListViewItem item = new(pos.Symbol);
                 item.SubItems.Add(pos.AssetLastPrice.ToString());
                 item.SubItems.Add(pos.Quantity.ToString());
                 item.SubItems.Add(pos.MarketValue.ToString());
@@ -747,6 +758,7 @@ public partial class AlpacaDashboard : Form
                 if (lv.Items.Count > 0)
                 {
                     ListViewItem item = lv.FindItemWithText(stock.Asset?.Symbol, false, 0, false);
+
                     if (item != null)
                     {
                         if (stock.Position != null)
@@ -758,7 +770,7 @@ public partial class AlpacaDashboard : Form
                             if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
                             try
                             {
-                                var marketValue = (Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text));
+                                var marketValue = Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text);
                                 if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
                                 if (stock.Position?.CostBasis != null)
                                 {
@@ -878,9 +890,9 @@ public partial class AlpacaDashboard : Form
             listViewOpenOrders.Invoke(new MethodInvoker(delegate () { listViewOpenOrders.Items.Clear(); }));
             foreach (var oo in openOrders.ToList())
             {
-                ListViewItem item = new ListViewItem(oo.Symbol);
+                ListViewItem item = new(oo.Symbol);
                 var tz = oo.FilledAtUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)oo.FilledAtUtc, easternZone).ToString();
-                var ord = $"{oo.OrderType.ToString()} { oo.OrderSide.ToString()} @ {oo.LimitPrice.ToString()} {tz}";
+                var ord = $"{oo.OrderType} { oo.OrderSide} @ {oo.LimitPrice} {tz}";
                 item.SubItems.Add(ord);
                 item.SubItems.Add(oo.FilledQuantity.ToString());
                 item.SubItems.Add(oo.AverageFillPrice.ToString());
@@ -910,6 +922,7 @@ public partial class AlpacaDashboard : Form
                 foreach (var assetSnapShot in listOfAssetandSnapShot.ToList())
                 {
                     ListViewItem item = new ListViewItem(assetSnapShot.Key.Symbol);
+
                     try
                     {
                         if (assetSnapShot.Value != null && assetSnapShot.Value.Quote != null && assetSnapShot.Value.CurrentDailyBar != null)
@@ -938,7 +951,7 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="lv"></param>
     /// <param name="stock"></param>
-    private void UpdateListViewWatchListsQuote(ListView lv, IStock stock)
+    private static void UpdateListViewWatchListsQuote(ListView lv, IStock stock)
     {
         try
         {
@@ -973,7 +986,7 @@ public partial class AlpacaDashboard : Form
         try
         {
             //row hit
-            Point mousePosition = listViewPositions.PointToClient(Control.MousePosition);
+            Point mousePosition = listViewPositions.PointToClient(MousePosition);
             ListViewHitTestInfo hit = listViewPositions.HitTest(mousePosition);
             if (hit.SubItem != null)
             {
@@ -1013,7 +1026,7 @@ public partial class AlpacaDashboard : Form
 
         if (lv != null)
         {
-            Point mousePosition = lv.PointToClient(Control.MousePosition);
+            Point mousePosition = lv.PointToClient(MousePosition);
             ListViewHitTestInfo hit = lv.HitTest(mousePosition);
             int columnindex = hit.Item.SubItems.IndexOf(hit.SubItem);
             var focusedItem = lv.FocusedItem;
@@ -1023,13 +1036,13 @@ public partial class AlpacaDashboard : Form
                 //sell or buy based position
                 var symbol = focusedItem.SubItems[0].Text;
                 IPosition? position = null;
-                if (Environment == "Live")
+                if (Environment == TradingEnvironment.Live)
                 {
-                    position = await LiveBroker.GetCurrentPosition(symbol);
+                    position = await LiveBroker.GetCurrentPosition(symbol).ConfigureAwait(false);
                 }
-                if (Environment == "Paper")
+                if (Environment == TradingEnvironment.Paper)
                 {
-                    position = await PaperBroker.GetCurrentPosition(symbol);
+                    position = await PaperBroker.GetCurrentPosition(symbol).ConfigureAwait(false);
                 }
                 if (position != null && position.Quantity > 0)
                 {
@@ -1081,12 +1094,12 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private void listViewOpenOrders_MouseClick(object sender, MouseEventArgs e)
+    private void ListViewOpenOrders_MouseClick(object sender, MouseEventArgs e)
     {
         try
         {
             //row hit
-            Point mousePosition = listViewOpenOrders.PointToClient(Control.MousePosition);
+            Point mousePosition = listViewOpenOrders.PointToClient(MousePosition);
             ListViewHitTestInfo hit = listViewOpenOrders.HitTest(mousePosition);
             int columnindex = hit.Item.SubItems.IndexOf(hit.SubItem);
             var focusedItem = listViewOpenOrders.FocusedItem;
@@ -1115,9 +1128,9 @@ public partial class AlpacaDashboard : Form
         tabControlBots.Visible = false;
         tabControlScanners.Visible = false;
         panelOrder.Visible = true;
-        this.textBoxLimitPrice.Visible = false;
-        this.labelLimitPrice.Visible = false;
-        this.textBoxLimitPrice.Text = "0.00";
+        textBoxLimitPrice.Visible = false;
+        labelLimitPrice.Visible = false;
+        textBoxLimitPrice.Text = "0.00";
     }
 
     /// <summary>
@@ -1166,13 +1179,13 @@ public partial class AlpacaDashboard : Form
     {
         if (((CheckBox)sender).Checked)
         {
-            Environment = "Live";
+            Environment = TradingEnvironment.Live;
             Stock.Broker = LiveBroker;
             await LiveBroker.UpdateEnviromentData();
         }
         else
         {
-            Environment = "Paper";
+            Environment = TradingEnvironment.Paper;
             Stock.Broker = PaperBroker;
             await PaperBroker.UpdateEnviromentData();
         }
@@ -1208,42 +1221,47 @@ public partial class AlpacaDashboard : Form
         }
     }
 
-    private void textBoxSymbol_KeyPress(object sender, KeyPressEventArgs e)
+    private void TextBoxSymbol_KeyPress(object sender, KeyPressEventArgs e)
     {
-        e.KeyChar = Char.ToUpper(e.KeyChar);
+        e.KeyChar = char.ToUpper(e.KeyChar);
     }
-    private void textBoxLimitPrice_KeyPress(object sender, KeyPressEventArgs e)
-    {
-        if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '.'))
-        {
-            e.Handled = true;
-        }
-    }
-    private void textBoxStopPrice_KeyPress(object sender, KeyPressEventArgs e)
+
+    private void TextBoxLimitPrice_KeyPress(object sender, KeyPressEventArgs e)
     {
         if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '.'))
         {
             e.Handled = true;
         }
     }
-    private void textBoxAmount_KeyPress(object sender, KeyPressEventArgs e)
+
+    private void TextBoxStopPrice_KeyPress(object sender, KeyPressEventArgs e)
     {
         if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '.'))
         {
             e.Handled = true;
         }
     }
-    private void textBoxTrailRateOrPrice_KeyPress(object sender, KeyPressEventArgs e)
+
+    private void TextBoxAmount_KeyPress(object sender, KeyPressEventArgs e)
     {
         if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '.'))
         {
             e.Handled = true;
         }
     }
-    private void textBoxSymbol_Leave(object sender, EventArgs e)
+
+    private void TextBoxTrailRateOrPrice_KeyPress(object sender, KeyPressEventArgs e)
+    {
+        if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '.'))
+        {
+            e.Handled = true;
+        }
+    }
+    private void TextBoxSymbol_Leave(object sender, EventArgs e)
     {
 
     }
+
     private void TextBoxQuantity_KeyPress(object sender, KeyPressEventArgs e)
     {
         IAsset? asset = null;
@@ -1308,7 +1326,7 @@ public partial class AlpacaDashboard : Form
 
         if (textBoxSymbol.Text != "")
         {
-            if (Environment == "Live")
+            if (Environment == TradingEnvironment.Live)
             {
                 try
                 {
@@ -1318,7 +1336,7 @@ public partial class AlpacaDashboard : Form
                 }
                 catch { }
             }
-            if (Environment == "Paper")
+            if (Environment == TradingEnvironment.Paper)
             {
                 try
                 {
@@ -1374,11 +1392,11 @@ public partial class AlpacaDashboard : Form
 
             if (asset != null && textBoxSymbol.Text != "")
             {
-                if (Environment == "Live")
+                if (Environment == TradingEnvironment.Live)
                 {
                     await Stock.Subscribe(LiveBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false);
                 }
-                if (Environment == "Paper")
+                if (Environment == TradingEnvironment.Paper)
                 {
                     await Stock.Subscribe(PaperBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false);
                 }
@@ -1436,7 +1454,7 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private void radioButtonDollars_Click(object sender, EventArgs e)
+    private void RadioButtonDollars_Click(object sender, EventArgs e)
     {
         RadioButtonDollarsCliked();
     }
@@ -1524,7 +1542,7 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private void textBoxAmount_TextChanged(object sender, EventArgs e)
+    private void TextBoxAmount_TextChanged(object sender, EventArgs e)
     {
         ISnapshot? snapshot = null;
         IPosition? position = null;
@@ -1596,7 +1614,6 @@ public partial class AlpacaDashboard : Form
             buttonConfirm.Enabled = false;
         else
             buttonConfirm.Enabled = true;
-
     }
 
     /// <summary>
@@ -1746,7 +1763,7 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private async void buttonOrderConfirm_Click(object sender, EventArgs e)
+    private async void ButtonOrderConfirm_Click(object sender, EventArgs e)
     {
         decimal qty = Convert.ToDecimal(textBoxQuantity.Text);
         decimal amt = Convert.ToDecimal(textBoxAmount.Text);
@@ -1801,7 +1818,7 @@ public partial class AlpacaDashboard : Form
         }
 
         //order qty or amount
-        OrderQuantity orderQuantity = new OrderQuantity();
+        OrderQuantity orderQuantity = new();
         if (radioButtonShares.Checked)
         {
             orderQuantity = OrderQuantity.Fractional(qty);
@@ -1811,14 +1828,14 @@ public partial class AlpacaDashboard : Form
             orderQuantity = OrderQuantity.Notional(amt);
         }
 
-        if (Environment == "Live")
+        if (Environment == TradingEnvironment.Live)
         {
             (IOrder? order, string? message) = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders().ConfigureAwait(false); ;
         }
-        if (Environment == "Paper")
+        if (Environment == TradingEnvironment.Paper)
         {
             (IOrder? order, string? message) = await PaperBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
@@ -1832,30 +1849,30 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private async void contextMenuStripOpenOrder_Click(object sender, EventArgs e)
+    private async void ContextMenuStripOpenOrder_Click(object sender, EventArgs e)
     {
         try
         {
             var focusedItem = listViewOpenOrders.FocusedItem;
             var clientId = focusedItem.SubItems[6].Text;
-            if (Environment == "Live")
+            if (Environment == TradingEnvironment.Live)
             {
-                await LiveBroker.DeleteOpenOrder(Guid.Parse(clientId)).ConfigureAwait(false); ;
+                await LiveBroker.DeleteOpenOrder(Guid.Parse(clientId)).ConfigureAwait(false);
             }
-            if (Environment == "Paper")
+            if (Environment == TradingEnvironment.Paper)
             {
-                await PaperBroker.DeleteOpenOrder(Guid.Parse(clientId)).ConfigureAwait(false); ;
+                await PaperBroker.DeleteOpenOrder(Guid.Parse(clientId)).ConfigureAwait(false);
             }
         }
         catch { }
     }
 
-    private void radioButtonTrailRate_Click(object sender, EventArgs e)
+    private void RadioButtonTrailRate_Click(object sender, EventArgs e)
     {
         textBoxTrailRateOrPrice.Text = "1";
     }
 
-    private void radioButtonTrailPrice_Click(object sender, EventArgs e)
+    private void RadioButtonTrailPrice_Click(object sender, EventArgs e)
     {
         textBoxTrailRateOrPrice.Text = textBoxStopPrice.Text;
     }
@@ -1871,17 +1888,17 @@ public partial class AlpacaDashboard : Form
     /// <param name="e"></param>
     private async void ScanButton_Click(object? sender, EventArgs e)
     {
-        Dictionary<string, IScanner>? instances = null;
         IScanner? instance = null;
-        if (Environment == "Live")
+        Dictionary<string, IScanner>? instances;
+        if (Environment == TradingEnvironment.Live)
         {
             instances = (Dictionary<string, IScanner>)tabControlScanners.SelectedTab.Tag;
-            instance = instances["Live"];
+            instance = instances[Environment.ToString()];
         }
-        if (Environment == "Paper")
+        if (Environment == TradingEnvironment.Paper)
         {
             instances = (Dictionary<string, IScanner>)tabControlScanners.SelectedTab.Tag;
-            instance = instances["Paper"];
+            instance = instances[Environment.ToString()];
         }
         var sc = (SplitContainer?)instance?.UiContainer;
         var lv = (ListView?)sc?.Panel1.Controls[0];
@@ -1947,14 +1964,14 @@ public partial class AlpacaDashboard : Form
         LoadScannerDetails(Environment);
     }
 
-    private void LoadScannerDetails(string env)
+    private void LoadScannerDetails(TradingEnvironment env)
     {
         try
         {
             if (Environment == env)
             {
                 var instances = (Dictionary<string, IScanner>)tabControlScanners.SelectedTab.Tag;
-                var instance = instances[env];
+                var instance = instances[env.ToString()];
 
                 var sc = (SplitContainer)instance.UiContainer;
                 var lv = (ListView)sc.Panel1.Controls[0];
@@ -2147,28 +2164,26 @@ public partial class AlpacaDashboard : Form
         {
             ToolStripItem tsi = e.ClickedItem;
             var symbol = ((ListViewItem.ListViewSubItem)e.ClickedItem.Owner.Tag).Text;
-            if (Environment == "Live")
+            if (Environment == TradingEnvironment.Live)
             {
                 var instances = (Dictionary<string, IBot>)e.ClickedItem.Tag;
-                var bot = instances[Environment];
+                var bot = instances[Environment.ToString()];
                 var position = await LiveBroker.GetCurrentPosition(symbol);
                 var asset = await LiveBroker.GetAsset(symbol);
                 bot.ListOfAssetAndPosition.Add(asset, position);
 
                 bot.OnListUpdated(new BotListUpdatedEventArgs() { ListOfsymbolAndPosition = bot.ListOfAssetAndPosition });
             }
-            if (Environment == "Paper")
+            if (Environment == TradingEnvironment.Paper)
             {
                 var instances = (Dictionary<string, IBot>)e.ClickedItem.Tag;
-                var bot = instances[Environment];
+                var bot = instances[Environment.ToString()];
                 var position = await PaperBroker.GetCurrentPosition(symbol);
-
                 var asset = await LiveBroker.GetAsset(symbol);
                 bot.ListOfAssetAndPosition.Add(asset, position);
 
                 bot.OnListUpdated(new BotListUpdatedEventArgs() { ListOfsymbolAndPosition = bot.ListOfAssetAndPosition });
             }
-
         }
         catch { }
 
@@ -2202,15 +2217,16 @@ public partial class AlpacaDashboard : Form
                 {
                     if (focusedItem != null && focusedItem.Bounds.Contains(e.Location))
                     {
-                        Dictionary<string, IBot> bots = ((Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag);
-                        var instance = bots[Environment];
+                        Dictionary<string, IBot> bots = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
+                        var instance = bots[Environment.ToString()];
                         IAsset? asset = null;
-                        if (Environment == "Live")
+                        if (Environment == TradingEnvironment.Live)
                             asset = await LiveBroker.GetAsset(focusedItem.SubItems[0].Text);
-                        if (Environment == "Paper")
+                        if (Environment == TradingEnvironment.Paper)
                             asset = await PaperBroker.GetAsset(focusedItem.SubItems[0].Text);
                         instance.SelectedAsset = asset;
                         contextMenuStripBot.Tag = instance;
+
                         if (asset != null)
                         {
                             CancellationTokenSource? cts = null;
@@ -2266,7 +2282,6 @@ public partial class AlpacaDashboard : Form
 
     private async void ToolStripMenuItemStart_Click(object sender, EventArgs e)
     {
-
         IBot instance = (IBot)contextMenuStripBot.Tag;
         var sc = (SplitContainer)instance.UiContainer;
         ListView botListView = (ListView)sc.Panel1.Controls[0];
@@ -2300,10 +2315,9 @@ public partial class AlpacaDashboard : Form
                 instance.ActiveAssets.Add(instance.SelectedAsset, botTokenSource);
             }
         }
-
     }
 
-    private void toolStripMenuItemStop_Click(object sender, EventArgs e)
+    private void ToolStripMenuItemStop_Click(object sender, EventArgs e)
     {
         IBot instance = (IBot)contextMenuStripBot.Tag;
         var sc = (SplitContainer)instance.UiContainer;
@@ -2327,37 +2341,38 @@ public partial class AlpacaDashboard : Form
         }
     }
 
-    private void toolStripMenuItemDelete_Click(object sender, EventArgs e)
+    private void ToolStripMenuItemDelete_Click(object sender, EventArgs e)
     {
         IBot instance = (IBot)contextMenuStripBot.Tag;
         var sc = (SplitContainer)instance.UiContainer;
         ListView botListView = (ListView)sc.Panel1.Controls[0];
         botListView.Items.Remove(botListView.FocusedItem);
+
         if (instance.SelectedAsset != null)
         {
             foreach (var asset in instance.ListOfAssetAndPosition.Keys.Where(x => x.Symbol == instance.SelectedAsset.Symbol))
             {
                 instance.ListOfAssetAndPosition.Remove(asset);
             }
-            if (Environment == "Paper")
+            if (Environment == TradingEnvironment.Paper)
             {
                 PaperBroker.DeleteItemFromWatchList(instance.WatchList, instance.SelectedAsset);
             }
-            if (Environment == "Live")
+            if (Environment == TradingEnvironment.Live)
             {
                 LiveBroker.DeleteItemFromWatchList(instance.WatchList, instance.SelectedAsset);
             }
         }
     }
 
-    private void LoadBotDetails(string env)
+    private void LoadBotDetails(TradingEnvironment env)
     {
         try
         {
             if (Environment == env)
             {
                 var instances = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
-                var instance = instances[env];
+                var instance = instances[env.ToString()];
 
                 var sc = (SplitContainer)instance.UiContainer;
                 var lv = (ListView)sc.Panel1.Controls[0];
@@ -2384,6 +2399,7 @@ public partial class AlpacaDashboard : Form
         }
         catch { }
     }
+
     private static void DisplayControlsForBot(IBot instance, TableLayoutPanel tableLayoutPanel, Type _type, PropertyInfo p)
     {
         if (p.PropertyType == typeof(decimal))
@@ -2411,6 +2427,7 @@ public partial class AlpacaDashboard : Form
             cb.Text = p.GetValue(instance)?.ToString();
         }
     }
+
     private static void SetValuesOfControlsforBot(IBot instance, Control.ControlCollection tfcc, Type _type, PropertyInfo p)
     {
         if (p.PropertyType == typeof(string))
@@ -2439,6 +2456,7 @@ public partial class AlpacaDashboard : Form
             p.SetValue(instance, Enum.Parse(typeof(BarTimeFrameUnit), ctl.Text));
         }
     }
+
     private static void GenerateControlForBot(Type _type, IBot instance, TableLayoutPanel tableLayoutPanel, PropertyInfo p)
     {
         if (p.PropertyType == typeof(decimal))
@@ -2481,5 +2499,4 @@ public partial class AlpacaDashboard : Form
     }
 
     #endregion
-
 }

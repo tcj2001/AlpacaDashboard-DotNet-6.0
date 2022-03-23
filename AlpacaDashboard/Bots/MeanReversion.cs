@@ -39,11 +39,7 @@ internal class MeanReversion : IBot
     /// <param name="e"></param>
     public void OnListUpdated(BotListUpdatedEventArgs e)
     {
-        EventHandler<BotListUpdatedEventArgs> handler = BotListUpdated;
-        if (handler != null)
-        {
-            handler(this, e);
-        }
+        BotListUpdated?.Invoke(this, e);
     }
     #endregion
 
@@ -72,7 +68,7 @@ internal class MeanReversion : IBot
     /// <param name="broker"></param>
     public MeanReversion(Broker broker)
     {
-        this.Broker = broker;
+        Broker = broker;
         ActiveAssets = new Dictionary<IAsset, CancellationTokenSource>();
     }
 
@@ -88,11 +84,11 @@ internal class MeanReversion : IBot
 
         //get stock object of the symbol
         IStock? stock = null;
-        if (Broker.Environment == "Paper")
+        if (Broker.Environment == TradingEnvironment.Paper)
         {
             stock = Stock.PaperStockObjects.GetStock(asset);
         }
-        if (Broker.Environment == "Live")
+        if (Broker.Environment == TradingEnvironment.Live)
         {
             stock = Stock.LiveStockObjects.GetStock(asset);
         }
@@ -119,8 +115,6 @@ internal class MeanReversion : IBot
     /// <summary>
     /// Bot start call and get updated stock for every bar time frame
     /// </summary>
-    /// <param name="stock"></param>
-    /// <param name="barTimeFrameUnit"></param>
     /// <param name="barTimeFrameCount"></param>
     /// <param name="token"></param>
     private async void BotStartCall(IStock stock, BarTimeFrame barTimeFrame, int averageBars, int scale, CancellationToken token)
@@ -132,7 +126,7 @@ internal class MeanReversion : IBot
 
         log.Information($"Starting {this.GetType()} Bot for {stock?.Asset?.Symbol}");
 
-        List<Decimal?> closingPrices = new();
+        List<decimal?> closingPrices = new();
         IStock? updatedStock = null;
         try
         {
@@ -153,11 +147,11 @@ internal class MeanReversion : IBot
             while (!token.IsCancellationRequested)
             {
                 //get update stock data for every loop
-                if (Broker.Environment == "Paper")
+                if (Broker.Environment == TradingEnvironment.Paper)
                 {
                     updatedStock = Stock.PaperStockObjects.GetStock(stock?.Asset?.Symbol);
                 }
-                if (Broker.Environment == "Live")
+                if (Broker.Environment == TradingEnvironment.Live)
                 {
                     updatedStock = Stock.LiveStockObjects.GetStock(stock?.Asset?.Symbol);
                 }

@@ -252,7 +252,7 @@
             this.listViewOpenOrders.TabIndex = 0;
             this.listViewOpenOrders.UseCompatibleStateImageBehavior = false;
             this.listViewOpenOrders.View = System.Windows.Forms.View.Details;
-            this.listViewOpenOrders.MouseClick += new System.Windows.Forms.MouseEventHandler(this.listViewOpenOrders_MouseClick);
+            this.listViewOpenOrders.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ListViewOpenOrders_MouseClick);
             // 
             // ClosedOrder
             // 
@@ -344,7 +344,7 @@
             this.toolStripMenuItemOpenOrder});
             this.contextMenuStripOpenOrder.Name = "contextMenuStripOpenOrder";
             this.contextMenuStripOpenOrder.Size = new System.Drawing.Size(137, 26);
-            this.contextMenuStripOpenOrder.Click += new System.EventHandler(this.contextMenuStripOpenOrder_Click);
+            this.contextMenuStripOpenOrder.Click += new System.EventHandler(this.ContextMenuStripOpenOrder_Click);
             // 
             // toolStripMenuItemOpenOrder
             // 
@@ -524,8 +524,8 @@
             this.textBoxSymbol.Size = new System.Drawing.Size(64, 23);
             this.textBoxSymbol.TabIndex = 35;
             this.textBoxSymbol.TextChanged += new System.EventHandler(this.textBoxSymbol_TextChanged);
-            this.textBoxSymbol.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.textBoxSymbol_KeyPress);
-            this.textBoxSymbol.Leave += new System.EventHandler(this.textBoxSymbol_Leave);
+            this.textBoxSymbol.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.TextBoxSymbol_KeyPress);
+            this.textBoxSymbol.Leave += new System.EventHandler(this.TextBoxSymbol_Leave);
             // 
             // textBoxAmount
             // 
@@ -534,8 +534,8 @@
             this.textBoxAmount.Size = new System.Drawing.Size(73, 23);
             this.textBoxAmount.TabIndex = 45;
             this.textBoxAmount.Text = "0.00";
-            this.textBoxAmount.TextChanged += new System.EventHandler(this.textBoxAmount_TextChanged);
-            this.textBoxAmount.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.textBoxAmount_KeyPress);
+            this.textBoxAmount.TextChanged += new System.EventHandler(this.TextBoxAmount_TextChanged);
+            this.textBoxAmount.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.TextBoxAmount_KeyPress);
             // 
             // groupBoxTrailRatePrice
             // 
@@ -559,7 +559,7 @@
             this.radioButtonTrailRate.TabStop = true;
             this.radioButtonTrailRate.Text = "Trail Rate";
             this.radioButtonTrailRate.UseVisualStyleBackColor = true;
-            this.radioButtonTrailRate.Click += new System.EventHandler(this.radioButtonTrailRate_Click);
+            this.radioButtonTrailRate.Click += new System.EventHandler(this.RadioButtonTrailRate_Click);
             // 
             // radioButtonTrailPrice
             // 
@@ -570,7 +570,7 @@
             this.radioButtonTrailPrice.TabIndex = 18;
             this.radioButtonTrailPrice.Text = "Trail Price";
             this.radioButtonTrailPrice.UseVisualStyleBackColor = true;
-            this.radioButtonTrailPrice.Click += new System.EventHandler(this.radioButtonTrailPrice_Click);
+            this.radioButtonTrailPrice.Click += new System.EventHandler(this.RadioButtonTrailPrice_Click);
             // 
             // labelLimitPrice
             // 
@@ -600,7 +600,7 @@
             this.textBoxLimitPrice.TabIndex = 42;
             this.textBoxLimitPrice.Visible = false;
             this.textBoxLimitPrice.TextChanged += new System.EventHandler(this.TextBoxLimitPrice_TextChanged);
-            this.textBoxLimitPrice.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.textBoxLimitPrice_KeyPress);
+            this.textBoxLimitPrice.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.TextBoxLimitPrice_KeyPress);
             // 
             // textBoxStopPrice
             // 
@@ -609,7 +609,7 @@
             this.textBoxStopPrice.Size = new System.Drawing.Size(73, 23);
             this.textBoxStopPrice.TabIndex = 41;
             this.textBoxStopPrice.Visible = false;
-            this.textBoxStopPrice.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.textBoxStopPrice_KeyPress);
+            this.textBoxStopPrice.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.TextBoxStopPrice_KeyPress);
             // 
             // textBoxTrailRateOrPrice
             // 
@@ -619,7 +619,7 @@
             this.textBoxTrailRateOrPrice.TabIndex = 40;
             this.textBoxTrailRateOrPrice.Text = "1";
             this.textBoxTrailRateOrPrice.Visible = false;
-            this.textBoxTrailRateOrPrice.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.textBoxTrailRateOrPrice_KeyPress);
+            this.textBoxTrailRateOrPrice.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.TextBoxTrailRateOrPrice_KeyPress);
             // 
             // labelEstimatedPriceOrQuantityValue
             // 
@@ -686,7 +686,7 @@
             this.radioButtonDollars.TabIndex = 18;
             this.radioButtonDollars.Text = "Dollars";
             this.radioButtonDollars.UseVisualStyleBackColor = true;
-            this.radioButtonDollars.Click += new System.EventHandler(this.radioButtonDollars_Click);
+            this.radioButtonDollars.Click += new System.EventHandler(this.RadioButtonDollars_Click);
             // 
             // radioButtonShares
             // 
@@ -751,7 +751,7 @@
             this.buttonConfirm.TabIndex = 25;
             this.buttonConfirm.Text = "Confim";
             this.buttonConfirm.UseVisualStyleBackColor = true;
-            this.buttonConfirm.Click += new System.EventHandler(this.buttonOrderConfirm_Click);
+            this.buttonConfirm.Click += new System.EventHandler(this.ButtonOrderConfirm_Click);
             // 
             // labelTimeInForce
             // 
@@ -811,14 +811,14 @@
             this.toolStripMenuItemStop.Name = "toolStripMenuItemStop";
             this.toolStripMenuItemStop.Size = new System.Drawing.Size(180, 22);
             this.toolStripMenuItemStop.Text = "Stop";
-            this.toolStripMenuItemStop.Click += new System.EventHandler(this.toolStripMenuItemStop_Click);
+            this.toolStripMenuItemStop.Click += new System.EventHandler(this.ToolStripMenuItemStop_Click);
             // 
             // toolStripMenuItemDelete
             // 
             this.toolStripMenuItemDelete.Name = "toolStripMenuItemDelete";
             this.toolStripMenuItemDelete.Size = new System.Drawing.Size(180, 22);
             this.toolStripMenuItemDelete.Text = "Delete";
-            this.toolStripMenuItemDelete.Click += new System.EventHandler(this.toolStripMenuItemDelete_Click);
+            this.toolStripMenuItemDelete.Click += new System.EventHandler(this.ToolStripMenuItemDelete_Click);
             // 
             // AlpacaDashboard
             // 
