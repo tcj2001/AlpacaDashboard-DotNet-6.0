@@ -6,8 +6,6 @@ namespace AlpacaDashboard.Scanners;
 internal class ScannerAboveSMA : IScanner
 {
     #region Required
-    //define public properites that need to dynamically generate input controls, Broker will be ignored
-
     //Broker Environment
     public Broker Broker { get; set; } = default!;
 
@@ -42,8 +40,7 @@ internal class ScannerAboveSMA : IScanner
     }
     #endregion
 
-    //Define all other field that need to shown on the UI
-
+    #region properites that will be shown on UI
     //TimeFrame unit
     private BarTimeFrameUnit _BarTimeFrameUnit = BarTimeFrameUnit.Day;
     public BarTimeFrameUnit BarTimeFrameUnit { get => _BarTimeFrameUnit; set => _BarTimeFrameUnit = value; }
@@ -67,9 +64,7 @@ internal class ScannerAboveSMA : IScanner
     //SMA length
     private int _SmaLength = 14;
     public int SmaLength { get => _SmaLength; set => _SmaLength = value; }
-
-    //Define all other field that need to shown on the UI
-    //none
+    #endregion
 
     public ScannerAboveSMA(Broker broker) => Broker = broker;
 

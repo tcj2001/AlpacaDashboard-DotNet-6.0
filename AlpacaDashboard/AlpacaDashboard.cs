@@ -530,7 +530,7 @@ public partial class AlpacaDashboard : Form
                         UpdateOrderBoxPrices(stock);
 
                         //update portfolio position listview
-                        UpdateListViewPositionsPrices(stock);
+                        UpdateListViewPositionsPrices(listViewPositions, stock);
 
                         //update portfolio watchlist listview
                         UpdateListViewWatchListsQuote(listViewWatchList, stock);
@@ -541,7 +541,7 @@ public partial class AlpacaDashboard : Form
 
                         //update bot selected tab positions
                         if (botListView != null)
-                            UpdateListViewBotPrices(botListView, stock);
+                            UpdateListViewPositionsPrices(botListView, stock);
                     }
                 }
             }
@@ -588,7 +588,7 @@ public partial class AlpacaDashboard : Form
                         UpdateOrderBoxPrices(stock);
 
                         //update portfolio position listview
-                        UpdateListViewPositionsPrices(stock);
+                        UpdateListViewPositionsPrices(listViewPositions, stock);
 
                         //update portfolio watchlist listview
                         UpdateListViewWatchListsQuote(listViewWatchList, stock);
@@ -599,7 +599,7 @@ public partial class AlpacaDashboard : Form
 
                         //update bot selected tab positions
                         if (botListView != null)
-                            UpdateListViewBotPrices(botListView, stock);
+                            UpdateListViewPositionsPrices(botListView, stock);
                     }
                 }
             }
@@ -701,9 +701,10 @@ public partial class AlpacaDashboard : Form
 
         var reqsymbol = await PaperBroker.PositionAndOpenOrderAssets();
         LoadWatchListListView(listViewWatchList, reqsymbol);
+      
     }
     /// <summary>
-    /// refresh position listview
+    /// load position listview
     /// </summary>
     /// <param name="positions"></param>
     private void UpdateListViewPositions(string environment, IReadOnlyCollection<IPosition> positions)
@@ -733,21 +734,25 @@ public partial class AlpacaDashboard : Form
         }
     }
     /// <summary>
-    /// refresh position listview with current prices
+    /// refresh position listview with current qty and value
     /// </summary>
     /// <param name="stock"></param>
-    private void UpdateListViewPositionsPrices(IStock stock)
+    private void UpdateListViewPositionsPrices(ListView lv, IStock stock)
     {
         try
         {
             //update position list prices
-            listViewPositions.Invoke(new MethodInvoker(delegate ()
+            lv.Invoke(new MethodInvoker(delegate ()
             {
-                if (listViewPositions.Items.Count > 0)
+                if (lv.Items.Count > 0)
                 {
-                    ListViewItem item = listViewPositions.FindItemWithText(stock.Asset?.Symbol, false, 0, false);
+                    ListViewItem item = lv.FindItemWithText(stock.Asset?.Symbol, false, 0, false);
                     if (item != null)
                     {
+                        if (stock.Position != null)
+                        {
+                            if (item.SubItems[2].Text != stock.Position.Quantity.ToString()) item.SubItems[2].Text = stock.Position.Quantity.ToString();
+                        }
                         if (stock.Trade?.Price.ToString() != "")
                         {
                             if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
@@ -891,7 +896,7 @@ public partial class AlpacaDashboard : Form
 
     #region Listviews methods
     /// <summary>
-    /// refresh any watchlist listview with assets
+    /// Load any watchlist listview with assets
     /// </summary>
     /// <param name="lv"></param>
     /// <param name="listOfAssetandSnapShot"></param>
@@ -1808,14 +1813,14 @@ public partial class AlpacaDashboard : Form
 
         if (Environment == "Live")
         {
-            IOrder? order = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
+            (IOrder? order, string? message) = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders().ConfigureAwait(false); ;
         }
         if (Environment == "Paper")
         {
-            IOrder? order = await PaperBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
+            (IOrder? order, string? message) = await PaperBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await PaperBroker.UpdateOpenOrders().ConfigureAwait(false); ;
@@ -2075,44 +2080,6 @@ public partial class AlpacaDashboard : Form
     #endregion
 
     #region Bot methods and events handlers
-
-    /// <summary>
-    /// refresh Bot listview with current prices
-    /// </summary>
-    /// <param name="stock"></param>
-    private void UpdateListViewBotPrices(ListView lv, IStock stock)
-    {
-        try
-        {
-            //update position list prices
-            lv.Invoke(new MethodInvoker(delegate ()
-            {
-                if (lv.Items.Count > 0)
-                {
-                    ListViewItem item = lv.FindItemWithText(stock.Asset?.Symbol, false, 0, false);
-                    if (item != null)
-                    {
-                        if (stock.Trade?.Price.ToString() != "")
-                        {
-                            if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
-                            try
-                            {
-                                var marketValue = (Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text));
-                                if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
-                                if (stock.Position?.CostBasis != null)
-                                {
-                                    var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
-                                    if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
-                                }
-                            }
-                            catch (Exception) { }
-                        }
-                    }
-                }
-            }));
-        }
-        catch { }
-    }
 
     /// <summary>
     /// load bot list with bot symbols

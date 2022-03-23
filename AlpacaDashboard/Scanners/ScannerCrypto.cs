@@ -4,9 +4,6 @@ internal class ScannerCrypto : IScanner
 {
 
     #region Required
-
-    //define public properites that need to dynamically generate input controls, Broker will be ignored
-
     //Broker Environment
     public Broker Broker { get; set; } = default!;
 
@@ -45,9 +42,8 @@ internal class ScannerCrypto : IScanner
     }
     #endregion
 
-    //Define all other field that need to shown on the UI
-    //none
-
+    #region properites that will be shown on UI
+    #endregion
 
     public ScannerCrypto(Broker broker)
     {

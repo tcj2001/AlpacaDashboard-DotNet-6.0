@@ -47,6 +47,7 @@ internal class MeanReversion : IBot
     }
     #endregion
 
+    #region properites that will be shown on UI
     //Define all other field that need to be shown on the UI
     //TimeFrame unit
     private BarTimeFrameUnit _BarTimeFrameUnit = BarTimeFrameUnit.Minute;
@@ -60,6 +61,10 @@ internal class MeanReversion : IBot
     private int _averageBars = 20;
     public int AverageBars { get => _averageBars; set => _averageBars = value; }
 
+    //Scale
+    private int _scale = 200;
+    public int Scale { get => _scale; set => _scale = value; }
+    #endregion
 
     /// <summary>
     /// Constructor
@@ -95,14 +100,14 @@ internal class MeanReversion : IBot
         //Run you bot logic until cancelled
         if (stock != null)
         {
-            await Task.Run(() => BotLogic(stock, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), AverageBars, source.Token), source.Token).ConfigureAwait(false);
+            await Task.Run(() => BotStartCall(stock, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), AverageBars, Scale, source.Token), source.Token).ConfigureAwait(false);
         }
 
         return source;
     }
 
     /// <summary>
-    /// End Method
+    /// Bot ending logic
     /// </summary>
     /// <param name="source"></param>
     public void End(CancellationTokenSource? source)
@@ -112,14 +117,21 @@ internal class MeanReversion : IBot
     }
 
     /// <summary>
-    /// Main Bot Logic is in here
+    /// Bot start call and get updated stock for every bar time frame
     /// </summary>
     /// <param name="stock"></param>
     /// <param name="barTimeFrameUnit"></param>
     /// <param name="barTimeFrameCount"></param>
     /// <param name="token"></param>
-    private async void BotLogic(IStock stock, BarTimeFrame barTimeFrame, int averageBars, CancellationToken token)
+    private async void BotStartCall(IStock stock, BarTimeFrame barTimeFrame, int averageBars, int scale, CancellationToken token)
     {
+        //create a log for this bot and symbol
+        var log = new LoggerConfiguration()
+                  .WriteTo.File("Logs\\"+this.GetType()+"_"+stock?.Asset?.Symbol+".log", rollingInterval: RollingInterval.Day)
+                  .CreateLogger();
+
+        log.Information($"Starting {this.GetType()} Bot for {stock?.Asset?.Symbol}");
+
         List<Decimal?> closingPrices = new();
         IStock? updatedStock = null;
         try
@@ -135,7 +147,7 @@ internal class MeanReversion : IBot
             //do while its not ended
             while (!token.IsCancellationRequested)
             {
-                //get update stock data 
+                //get update stock data for every loop
                 if (Broker.Environment == "Paper")
                 {
                     updatedStock = Stock.PaperStockObjects.GetStock(stock?.Asset?.Symbol);
@@ -148,38 +160,15 @@ internal class MeanReversion : IBot
                 //your main bot logic here
                 /////////////////////////////////////////////////////////////////////////////////
 
-                var avg = closingPrices.Average();
-                var diff = avg - updatedStock?.MinuteBar?.Close;
+                updatedStock = await MeanReversionLogic(log, scale, closingPrices, updatedStock).ConfigureAwait(false);
 
-                if (diff < 0)
-                {
-                    //price is above average
-                    if (updatedStock?.Position?.Quantity > 0)
-                    {
-                        if(updatedStock?.Asset?.Symbol!=null)
-                            await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, true,
-                            updatedStock.Asset.Symbol, OrderQuantity.Fractional((decimal)updatedStock.Position.Quantity), null, updatedStock?.MinuteBar?.Close,
-                            null, null).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        var account = await Broker.GetAccountDetails();
-                        var equity = account?.Equity;
-                        var multiplier = ((decimal?)account?.Multiplier);
-                        var portfolioShare = -1 * diff / updatedStock?.MinuteBar?.Close * 200;
-                        var targetPositionValue = -1 * account?.Equity * multiplier * portfolioShare;
-                        var amountToShort = targetPositionValue - updatedStock?.Position?.MarketValue ?? 0M;
-                    }
-                }
-
+                /////////////////////////////////////////////////////////////////////////////////
 
                 closingPrices.Add(updatedStock?.MinuteBar?.Close);
                 if (closingPrices.Count > BarTimeFrameCount)
                 {
                     closingPrices.RemoveAt(0);
                 }
-
-                /////////////////////////////////////////////////////////////////////////////////
 
                 var looptime = 0;
                 if (barTimeFrame.Unit == BarTimeFrameUnit.Minute) looptime = barTimeFrame.Value;
@@ -190,7 +179,261 @@ internal class MeanReversion : IBot
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            var x = ex;
+            log.Information($"Ending {this.GetType()} Bot for {stock?.Asset?.Symbol}");
         }
+    }
+
+    /// <summary>
+    /// Your main mean reversion logic
+    /// </summary>
+    /// <param name="log"></param>
+    /// <param name="scale"></param>
+    /// <param name="closingPrices"></param>
+    /// <param name="updatedStock"></param>
+    /// <param name="lastTradeOpen"></param>
+    /// <param name="lastTradeId"></param>
+    /// <returns></returns>
+    private async Task<IStock?> MeanReversionLogic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
+    {
+        var symbol = updatedStock?.Asset?.Symbol;
+        var close = updatedStock?.MinuteBar?.Close==null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
+        var avg = closingPrices.Average();
+        var diff = avg - close;
+        var isAssetShortable = updatedStock?.Asset?.Shortable;
+        var assetClass = updatedStock?.Asset?.Class;
+
+        bool lastTradeOpen = false;
+        Guid? lastTradeId = Guid.NewGuid();
+        switch (updatedStock?.TradeUpdate?.Event)
+        {
+            case TradeEvent.Fill:
+                log.Information($"{symbol} Trade filled");
+                Console.WriteLine("Trade filled.");
+                lastTradeOpen = false;
+                break;
+            case TradeEvent.Rejected:
+                log.Information($"{symbol} Trade Rejected");
+                lastTradeOpen = false;
+                break;
+            case TradeEvent.Canceled:
+                log.Information($"{symbol} Trade Canceled");
+                lastTradeOpen = false;
+                break;
+        }
+
+        // If the last trade hasn't filled yet, we'd rather replace
+        // it than have two orders open at once.
+        if (lastTradeOpen && lastTradeId!=null)
+        {
+            // We need to wait for the cancel to process in order to avoid
+            // having long and short orders open at the same time.
+            var res = await Broker.DeleteOpenOrder((Guid)lastTradeId);
+        }
+
+        // Make sure we know how much we should spend on our position.
+        var account = await Broker.GetAccountDetails();
+        var buyingPower = account?.BuyingPower * 0.10M ?? 0M;
+        var equity = account?.Equity;
+        var multiplier = ((decimal?)account?.Multiplier);
+
+
+        // Check how much we currently have in this position.
+        var positionQuantity = updatedStock?.Position?.Quantity == null ? 0M : updatedStock?.Position?.Quantity;
+        var positionValue = updatedStock?.Position?.MarketValue == null ? 0M : updatedStock?.Position?.MarketValue;
+
+        //price is above average
+        if (diff < 0)
+        {
+            if (positionQuantity > 0)
+            {
+                //close existing long position
+                if (symbol != null)
+                {
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
+                    symbol, OrderQuantity.Fractional((decimal)positionQuantity), null, close,
+                    null, null).ConfigureAwait(false);
+                    lastTradeId = order?.OrderId;
+                    lastTradeOpen = order==null ? false : true;
+
+                    log.Information($"Closing exiting long {positionQuantity} position : {message}");
+                }
+            }
+            else
+            {
+                // Allocate a percent of portfolio to short position
+                var portfolioShare = -1 * diff / close * scale;
+                var targetPositionValue = -1 * equity * multiplier * portfolioShare;
+                var amountToShort = targetPositionValue - positionValue;
+
+                switch (amountToShort)
+                {
+                    case < 0:
+                        {
+                            // We want to expand our existing short position.
+                            //get amount to short
+                            if (amountToShort > account?.BuyingPower)
+                            {
+                                amountToShort = (decimal)account.BuyingPower;
+                            }
+
+
+                            //calulate quantity
+                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToShort);
+
+                            if (isAssetShortable == true)
+                            {
+                                if (updatedStock?.Asset?.Symbol != null)
+                                {
+                                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                                    updatedStock.Asset.Symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                    null, null).ConfigureAwait(false);
+                                    lastTradeId = order?.OrderId;
+                                    lastTradeOpen = order == null ? false : true;
+
+                                    log.Information($"Adding {calculatedQty * close:C2} to short position : {message}");
+                                }
+                            }
+                            else
+                            {
+                                log.Information($"Unable to place short order - asset is not shortable.");
+                            }
+                            break;
+                        }
+
+                    case > 0:
+                        {
+
+                            //calulate quantity
+                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToShort);
+
+                            // We want to shrink our existing short position.
+                            if (positionQuantity != null)
+                            {
+                                if (calculatedQty > -1 * positionQuantity)
+                                {
+                                    calculatedQty = (decimal)(-1 * positionQuantity);
+                                }
+                            }
+
+                            if (symbol != null)
+                            {
+                                (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                                symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                null, null).ConfigureAwait(false);
+                                lastTradeId = order?.OrderId;
+                                lastTradeOpen = order == null ? false : true;
+
+                                log.Information($"Removing {calculatedQty * close:C2} from short position : {message}");
+                            }
+                            break;
+                        }
+                }
+            }
+        }
+        //price is below average
+        else
+        {
+            var portfolioShare = diff / close * scale;
+            var targetPositionValue = equity * multiplier * portfolioShare;
+            var amountToLong = targetPositionValue - positionValue;
+
+            if (positionQuantity < 0)
+            {
+                //close exising short position
+                if (symbol != null)
+                {
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                    symbol, OrderQuantity.Fractional(-1 * (decimal)positionQuantity), null, close,
+                    null, null).ConfigureAwait(false);
+                    lastTradeId = order?.OrderId;
+                    lastTradeOpen = order == null ? false : true;
+
+                    log.Information($"Removing {positionValue:C2} short position : {message}");
+                }
+            }
+            else
+            {
+                switch (amountToLong)
+                {
+                    case > 0:
+                        {
+                            // We want to expand our existing long position.
+                            if (amountToLong > buyingPower)
+                            {
+                                amountToLong = (decimal)buyingPower;
+                            }
+
+                            //calulate quantity
+                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToLong);
+
+                            if (symbol != null)
+                            {
+                                (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                                symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                null, null).ConfigureAwait(false);
+                                lastTradeId = order?.OrderId;
+                                lastTradeOpen = order == null ? false : true;
+
+                                log.Information($"Adding {calculatedQty * close:C2} to long position : {message}");
+                            }
+                            break;
+                        }
+
+                    case < 0:
+                        {
+                            // We want to shrink our existing long position.
+                            amountToLong *= -1;
+
+                            //calulate quantity
+                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToLong);
+
+                            if (calculatedQty > positionQuantity)
+                            {
+                                calculatedQty = (decimal)positionQuantity;
+                            }
+
+                            if (isAssetShortable == true)
+                            {
+                                if (updatedStock?.Asset?.Symbol != null)
+                                {
+                                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
+                                    updatedStock.Asset.Symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                    null, null).ConfigureAwait(false);
+                                    lastTradeId = order?.OrderId;
+                                    lastTradeOpen = order == null ? false : true;
+
+                                    log.Information($"Removing {calculatedQty * close:C2} from long position : {message}");
+                                }
+                            }
+                            else
+                            {
+                                log.Information($"Unable to place short order - asset is not shortable.");
+                            }
+                            break;
+                        }
+                }
+            }
+        }
+
+
+        return updatedStock;
+    }
+
+    private static decimal CalculateQuantity(decimal? close, AssetClass? assetClass, decimal? amount)
+    {
+        var calculatedQty = 0M;
+        if (assetClass == AssetClass.UsEquity)
+        {
+            if (amount != null && close != null)
+                calculatedQty = (Int64)(amount / close);
+        }
+        if (assetClass == AssetClass.Crypto)
+        {
+            if (amount != null && close != null)
+                calculatedQty = (decimal)amount / (decimal)close;
+        }
+
+        return calculatedQty;
     }
 }
