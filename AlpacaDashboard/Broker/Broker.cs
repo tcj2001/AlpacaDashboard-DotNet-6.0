@@ -490,20 +490,19 @@ public class Broker : IDisposable
     {
         var asset = await GetAsset(obj.Order.Symbol).ConfigureAwait(false);
 
+        await Stock.Subscribe(this, obj.Order.Symbol, "Portfolio").ConfigureAwait(false);
+        IStock? stock = null;
+        if (Environment == TradingEnvironment.Live && Stock.LiveStockObjects != null)
+            stock = Stock.LiveStockObjects.GetStock(obj.Order.Symbol);
+        if (Environment == TradingEnvironment.Paper && Stock.PaperStockObjects != null)
+            stock = Stock.PaperStockObjects.GetStock(obj.Order.Symbol);
+        if (stock != null)
+        {
+            stock.TradeUpdate = obj;
+        }
+
         if (obj.Order.OrderStatus == OrderStatus.Filled || obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
         {
-            await Stock.Subscribe(this, obj.Order.Symbol, "Portfolio").ConfigureAwait(false);
-
-            IStock? stock = null;
-            if (Environment == "Live" && Stock.LiveStockObjects != null)
-                stock = Stock.LiveStockObjects.GetStock(obj.Order.Symbol);
-            if (Environment == "Paper" && Stock.PaperStockObjects != null)
-                stock = Stock.PaperStockObjects.GetStock(obj.Order.Symbol);
-            if (stock != null)
-            {
-                stock.TradeUpdate = obj;
-            }
-
             var tr = obj.TimestampUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)obj.TimestampUtc, easternZone).ToString();
             var tn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString();
             _logger.LogInformation($"Trade : {obj.Order.Symbol}, Current Qty: {obj.PositionQuantity}, Current Price: {obj.Price}, Trade Qty: {obj.Order.FilledQuantity}, " +
