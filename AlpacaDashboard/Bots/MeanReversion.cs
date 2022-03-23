@@ -126,7 +126,7 @@ internal class MeanReversion : IBot
 
         log.Information($"Starting {this.GetType()} Bot for {stock?.Asset?.Symbol}");
 
-        List<Decimal?> closingPrices = new();
+        List<decimal?> closingPrices = new();
         IStock? updatedStock = null;
         try
         {
@@ -142,11 +142,11 @@ internal class MeanReversion : IBot
             while (!token.IsCancellationRequested)
             {
                 //get update stock data for every loop
-                if (Broker.Environment == "Paper")
+                if (Broker.Environment == TradingEnvironment.Paper)
                 {
                     updatedStock = Stock.PaperStockObjects.GetStock(stock?.Asset?.Symbol);
                 }
-                if (Broker.Environment == "Live")
+                if (Broker.Environment == TradingEnvironment.Live)
                 {
                     updatedStock = Stock.LiveStockObjects.GetStock(stock?.Asset?.Symbol);
                 }

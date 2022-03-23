@@ -2167,7 +2167,7 @@ public partial class AlpacaDashboard : Form
             if (Environment == TradingEnvironment.Live)
             {
                 var instances = (Dictionary<string, IBot>)e.ClickedItem.Tag;
-                var bot = instances[Environment];
+                var bot = instances[Environment.ToString()];
                 var position = await LiveBroker.GetCurrentPosition(symbol);
                 var asset = await LiveBroker.GetAsset(symbol);
                 bot.ListOfAssetAndPosition.Add(asset, position);
@@ -2177,7 +2177,7 @@ public partial class AlpacaDashboard : Form
             if (Environment == TradingEnvironment.Paper)
             {
                 var instances = (Dictionary<string, IBot>)e.ClickedItem.Tag;
-                var bot = instances[Environment];
+                var bot = instances[Environment.ToString()];
                 var position = await PaperBroker.GetCurrentPosition(symbol);
                 var asset = await LiveBroker.GetAsset(symbol);
                 bot.ListOfAssetAndPosition.Add(asset, position);
@@ -2217,12 +2217,12 @@ public partial class AlpacaDashboard : Form
                 {
                     if (focusedItem != null && focusedItem.Bounds.Contains(e.Location))
                     {
-                        Dictionary<string, IBot> bots = ((Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag);
-                        var instance = bots[Environment];
+                        Dictionary<string, IBot> bots = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
+                        var instance = bots[Environment.ToString()];
                         IAsset? asset = null;
-                        if (Environment == "Live")
+                        if (Environment == TradingEnvironment.Live)
                             asset = await LiveBroker.GetAsset(focusedItem.SubItems[0].Text);
-                        if (Environment == "Paper")
+                        if (Environment == TradingEnvironment.Paper)
                             asset = await PaperBroker.GetAsset(focusedItem.SubItems[0].Text);
                         instance.SelectedAsset = asset;
                         contextMenuStripBot.Tag = instance;
@@ -2354,11 +2354,11 @@ public partial class AlpacaDashboard : Form
             {
                 instance.ListOfAssetAndPosition.Remove(asset);
             }
-            if (Environment == "Paper")
+            if (Environment == TradingEnvironment.Paper)
             {
                 PaperBroker.DeleteItemFromWatchList(instance.WatchList, instance.SelectedAsset);
             }
-            if (Environment == "Live")
+            if (Environment == TradingEnvironment.Live)
             {
                 LiveBroker.DeleteItemFromWatchList(instance.WatchList, instance.SelectedAsset);
             }

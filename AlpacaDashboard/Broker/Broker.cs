@@ -246,7 +246,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task<bool> DeleteOpenOrder(Guid orderId)
     {
-        return await alpacaTradingClient.DeleteOrderAsync(orderId, token).ConfigureAwait(false);
+        return await AlpacaTradingClient.DeleteOrderAsync(orderId, token).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -700,13 +700,13 @@ public class Broker : IDisposable
     {
         var symbols = assets.Select(x => x.Symbol).ToList();
         UpdateWatchListRequest updateWatchListRequest = new UpdateWatchListRequest(wl.WatchListId, wl.Name, symbols);
-        return await alpacaTradingClient.UpdateWatchListByIdAsync(updateWatchListRequest, token).ConfigureAwait(false);
+        return await AlpacaTradingClient.UpdateWatchListByIdAsync(updateWatchListRequest, token).ConfigureAwait(false);
     }
 
     public async void DeleteItemFromWatchList(IWatchList wl, IAsset asset)
     {
         ChangeWatchListRequest<Guid> changeWatchListRequest = new ChangeWatchListRequest<Guid>(wl.WatchListId, asset.Symbol);
-        await alpacaTradingClient.DeleteAssetFromWatchListByIdAsync(changeWatchListRequest, token).ConfigureAwait(false);
+        await AlpacaTradingClient.DeleteAssetFromWatchListByIdAsync(changeWatchListRequest, token).ConfigureAwait(false);
     }
 
     public async void AddItemToWatchList(IWatchList wl, string symbol)
@@ -850,8 +850,8 @@ public class Broker : IDisposable
         //get ISnapshot of stock symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(assetCount);
-            var stockSnapshots = await AlpacaDataClient.ListSnapshotsAsync(assetSubset.Select(x => x.Symbol), token).ConfigureAwait(false);
+            var assetSubset = assets.Where(x => x != null && x.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime).Select(x => x != null ? x.Symbol : string.Empty);
+            var stockSnapshots = await AlpacaDataClient.ListSnapshotsAsync(assetSubset, token).ConfigureAwait(false);
 
             foreach (var item in stockSnapshots)
             {
@@ -864,8 +864,8 @@ public class Broker : IDisposable
         //get ISnapshot of crypto symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
-            var sdlr = new SnapshotDataListRequest((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), SelectedCryptoExchange);
+            var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime).Select(x => x != null ? x.Symbol : string.Empty);
+            var sdlr = new SnapshotDataListRequest(assetSubset, SelectedCryptoExchange);
             var cryptoSnapshots = await AlpacaCryptoDataClient.ListSnapshotsAsync(sdlr, token).ConfigureAwait(false);
 
             foreach (var item in cryptoSnapshots)
@@ -896,8 +896,8 @@ public class Broker : IDisposable
         //get ISnapshot of stock symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x?.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime);
-            var stockTrades = await AlpacaDataClient.ListLatestTradesAsync(assetSubset.Select(x => x.Symbol), token).ConfigureAwait(false);
+            var assetSubset = assets.Where(x => x?.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime).Select(x => x != null ? x.Symbol : string.Empty);
+            var stockTrades = await AlpacaDataClient.ListLatestTradesAsync(assetSubset, token).ConfigureAwait(false);
 
             foreach (var item in stockTrades)
             {
@@ -908,8 +908,8 @@ public class Broker : IDisposable
         //get ISnapshot of crypto symbols for assetCount at a time
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.Crypto).Count(); i += maxAssetsAtOneTime)
         {
-            var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime);
-            var ldlr = new LatestDataListRequest((IEnumerable<string>)assetSubset.Select(x => x?.Symbol), SelectedCryptoExchange);
+            var assetSubset = assets.Where(x => x?.Class == AssetClass.Crypto).Skip(i).Take(maxAssetsAtOneTime).Select(x => x != null ? x.Symbol : string.Empty);
+            var ldlr = new LatestDataListRequest(assetSubset, SelectedCryptoExchange);
             var cryptoSnapshots = await AlpacaCryptoDataClient.ListLatestTradesAsync(ldlr, token).ConfigureAwait(false);
 
             foreach (var item in cryptoSnapshots)
@@ -938,7 +938,7 @@ public class Broker : IDisposable
         if (asset?.Class == AssetClass.UsEquity)
         {
             var historicalBarsRequest = new HistoricalBarsRequest(asset.Symbol, fromDate, toDate, barTimeFrame);
-            await foreach (var bar in alpacaDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
+            await foreach (var bar in AlpacaDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
             {
                 bars.Add(bar);
             }
@@ -946,7 +946,7 @@ public class Broker : IDisposable
         if (asset?.Class == AssetClass.Crypto)
         {
             var historicalBarsRequest = new HistoricalCryptoBarsRequest(asset.Symbol, fromDate, toDate, barTimeFrame);
-            await foreach (var bar in alpacaCryptoDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
+            await foreach (var bar in AlpacaCryptoDataClient.GetHistoricalBarsAsAsyncEnumerable(historicalBarsRequest, token))
             {
                 bars.Add(bar);
             }
