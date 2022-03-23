@@ -50,11 +50,7 @@ internal class MeanReversion : IBot
     /// <param name="e"></param>
     public void OnListUpdated(BotListUpdatedEventArgs e)
     {
-        EventHandler<BotListUpdatedEventArgs> handler = BotListUpdated;
-        if (handler != null)
-        {
-            handler(this, e);
-        }
+        BotListUpdated?.Invoke(this, e);
     }
     #endregion
 
@@ -64,7 +60,7 @@ internal class MeanReversion : IBot
     /// <param name="broker"></param>
     public MeanReversion(Broker broker)
     {
-        this.Broker = broker;
+        Broker = broker;
         ActiveSymbols = new Dictionary<string, CancellationTokenSource>();    
     }
 
@@ -80,11 +76,11 @@ internal class MeanReversion : IBot
 
         //get stock object of the symbol
         IStock? stock = null;
-        if (Broker.Environment == "Paper")
+        if (Broker.Environment == TradingEnvironment.Paper)
         {
             stock = Stock.PaperStockObjects.GetStock(symbol);
         }
-        if (Broker.Environment == "Live")
+        if (Broker.Environment == TradingEnvironment.Live)
         {
             stock = Stock.LiveStockObjects.GetStock(symbol);
         }
@@ -92,7 +88,7 @@ internal class MeanReversion : IBot
         //Run you bot logic until cancelled
         if (stock != null)
         {
-            await Task.Run(() => BotLogic(stock, BarTimeFrameUnit, BarTimeFrameCount, source.Token), source.Token).ConfigureAwait(false);
+            await Task.Run(() => BotLogic(BarTimeFrameCount, source.Token), source.Token).ConfigureAwait(false);
         }
 
         return source;
@@ -110,17 +106,15 @@ internal class MeanReversion : IBot
     /// <summary>
     /// Main Bot Logic is in here
     /// </summary>
-    /// <param name="stock"></param>
-    /// <param name="barTimeFrameUnit"></param>
     /// <param name="barTimeFrameCount"></param>
     /// <param name="token"></param>
-    private static async void BotLogic(IStock stock,  BarTimeFrameUnit barTimeFrameUnit, int barTimeFrameCount, CancellationToken token)
+    private static async void BotLogic(int barTimeFrameCount, CancellationToken token)
     {
         try
         {
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(barTimeFrameCount), token);
+                await Task.Delay(TimeSpan.FromSeconds(barTimeFrameCount), token).ConfigureAwait(false);
             }
         }
         catch (Exception ex)

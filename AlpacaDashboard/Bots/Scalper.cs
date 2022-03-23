@@ -66,7 +66,6 @@ internal class Scalper : IBot
         ActiveSymbols = new Dictionary<string, CancellationTokenSource>();
     }
 
-
     /// <summary>
     /// Start Method
     /// </summary>
@@ -79,11 +78,11 @@ internal class Scalper : IBot
 
         //get stock object of the symbol
         IStock? stock = null;
-        if (Broker.Environment == "Paper")
+        if (Broker.Environment == TradingEnvironment.Paper)
         {
             stock = Stock.PaperStockObjects.GetStock(symbol);
         }
-        if (Broker.Environment == "Live")
+        if (Broker.Environment == TradingEnvironment.Live)
         {
             stock = Stock.LiveStockObjects.GetStock(symbol);
         }
@@ -91,7 +90,7 @@ internal class Scalper : IBot
         //Run you bot logic until cancelled
         if (stock != null)
         {
-            await Task.Run(() => BotLogic(stock, BarTimeFrameUnit, BarTimeFrameCount, source.Token), source.Token).ConfigureAwait(false);
+            await Task.Run(() => BotLogic(BarTimeFrameCount, source.Token), source.Token).ConfigureAwait(false);
         }
 
         return source;
@@ -113,12 +112,11 @@ internal class Scalper : IBot
     /// <param name="barTimeFrameUnit"></param>
     /// <param name="barTimeFrameCount"></param>
     /// <param name="token"></param>
-
-    private async void BotLogic(IStock stock, BarTimeFrameUnit barTimeFrameUnit, int barTimeFrameCount, CancellationToken token)
+    private static async void BotLogic(int barTimeFrameCount, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromSeconds(1), token);
+            await Task.Delay(TimeSpan.FromSeconds(barTimeFrameCount), token).ConfigureAwait(false);
         }
     }
 }
