@@ -15,19 +15,13 @@ public interface IScanner
     public event EventHandler<ScannerListUpdatedEventArgs> ScannerListUpdated;
 
     //list to hold symbol and last bar of the time frame
-    Dictionary<string, ISnapshot> ListOfSymbolAndSnapshot { get; set; }
-
-    //TimeFrame unit
-    BarTimeFrameUnit BarTimeFrameUnit { get; set; }
-
-    //TimeFrame count
-    int BarTimeFrameCount { get; set; }
+    Dictionary<IAsset, ISnapshot?> ListOfAssetAndSnapshot { get; set; }
 
     //start scan
     Task Scan();
 
     //Return list of symbol and Last Bar
-    Dictionary<string, ISnapshot> GetScannedList();
+    Dictionary<IAsset, ISnapshot?> GetScannedList();
 
     //scanner list updated event
     void OnListUpdated(ScannerListUpdatedEventArgs e);

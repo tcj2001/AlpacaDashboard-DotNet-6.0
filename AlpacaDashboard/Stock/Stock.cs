@@ -2,43 +2,29 @@
 
 public class Stock : IStock
 {
-    public static bool MinutesBarSubscribed = false;
     public static Broker Broker { get; set; } = default!;
     public static StockList PaperStockObjects = new();
     public static StockList LiveStockObjects = new();
-    public IAsset Asset { get; set; }
-    public object? Tag { get; set; }
-    public string? Symbol { get; set; }
-    public bool subscribed { get; set; }
-    public decimal? Qty { get; set; }
-    public decimal? Last { get; set; }
-    public decimal? Low { get; set; }
-    public decimal? High { get; set; }
-    public decimal? Volume { get; set; }
-    public decimal? Vwap { get; set; }
-    public decimal? Open { get; set; }
-    public decimal? Close { get; set; }
-    public decimal? MarketValue { get; set; }
-    public decimal? OpenPositionValue { get; set; }
-    public decimal? BidPrice { get; set; }
-    public decimal? BidSize { get; set; }
-    public string? BidExchange { get; set; }
-    public decimal? AskPrice { get; set; }
-    public decimal? AskSize { get; set; }
-    public string? AskExchange { get; set; }
-    public Broker broker { get; set; }
+    public IAsset? Asset { get; set; }
+    public IQuote? Quote { get; set; }
+    public ITrade? Trade { get; set; }
+    public IPosition? Position { get; set; }
+    public ITradeUpdate? TradeUpdate { get; set; }
 
-    public Stock(Broker broker, IAsset asset, string symbol, string type)
+    public IBar? MinuteBar { get; set; }
+    public bool subscribed { get; set; }
+    public static bool MinutesBarSubscribed = false;
+    public object Tag { get; set; }
+
+    public Stock(Broker broker, IAsset asset, string type)
     {
-        this.broker = broker;
-        this.Symbol = symbol;
         this.Asset = asset;
         this.Tag = type;
 
         IStock? stock = null;
         if (broker.Environment == TradingEnvironment.Live)
         {
-            stock = LiveStockObjects.GetStock(symbol);
+            stock = LiveStockObjects.GetStock(asset.Symbol);
             if (stock == null)
             {
                 LiveStockObjects.Add(this);
@@ -46,7 +32,7 @@ public class Stock : IStock
         }
         if (broker.Environment == TradingEnvironment.Paper && PaperStockObjects != null)
         {
-            stock = PaperStockObjects.GetStock(symbol);
+            stock = PaperStockObjects.GetStock(asset.Symbol);
 
             if (stock == null)
             {
@@ -75,7 +61,7 @@ public class Stock : IStock
                 IStock? stock = LiveStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
             if (broker.Environment == TradingEnvironment.Paper)
@@ -83,7 +69,7 @@ public class Stock : IStock
                 IStock? stock = PaperStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
 
@@ -158,30 +144,29 @@ public class Stock : IStock
     /// <param name="broker"></param>
     /// <param name="symbols"></param>
     /// <returns></returns>
-    static public async Task Subscribe(Broker broker, IEnumerable<string> symbols, string watchListCategory)
+    static public async Task Subscribe(Broker broker, IEnumerable<IAsset> assets, int maxSymbolsAtOnetime, string watchListCategory)
     {
         IAlpacaDataSubscription<ITrade>? tradeSubscription = null;
         IAlpacaDataSubscription<IBar>? barSubscription = null;
         IAlpacaDataSubscription<IQuote>? quoteSubscription = null;
 
-        foreach (string symbol in symbols)
+        foreach (IAsset asset in assets)
         {
-            IAsset asset = await broker.GetAsset(symbol).ConfigureAwait(false);
             if (Broker.Environment == TradingEnvironment.Live)
             {
-                IStock? stock = LiveStockObjects.GetStock(symbol);
+                IStock? stock = LiveStockObjects.GetStock(asset.Symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
 
             if (Broker.Environment == TradingEnvironment.Paper)
             {
-                IStock? stock = PaperStockObjects.GetStock(symbol);
+                IStock? stock = PaperStockObjects.GetStock(asset.Symbol);
                 if (stock == null)
                 {
-                    stock = new Stock(broker, asset, symbol, watchListCategory);
+                    stock = new Stock(broker, asset, watchListCategory);
                 }
             }
         }
@@ -191,22 +176,28 @@ public class Stock : IStock
 
             try
             {
-                var cryptoStocks = LiveStockObjects.GetStocks(AssetClass.Crypto, symbols);
-                tradeSubscription = Broker.AlpacaCryptoStreamingClient.GetTradeSubscription(symbols);
-                tradeSubscription.Received += CryptoTradeSubscription_Received;
-                await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
-
-                quoteSubscription = Broker.AlpacaCryptoStreamingClient.GetQuoteSubscription(symbols);
-                quoteSubscription.Received += CryptoQuoteSubscription_Received;
-                await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
-
-                barSubscription = Broker.AlpacaCryptoStreamingClient.GetMinuteBarSubscription(symbols);
-                barSubscription.Received += CryptoMinAggrSubscription_Received;
-                await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
-
-                foreach (Stock stock in cryptoStocks)
+                for (int i = 0; i < assets.Where(x => x.Class == AssetClass.Crypto).Count(); i += maxSymbolsAtOnetime)
                 {
-                    stock.subscribed = true;
+                    var assetSubset = assets.Where(x => x.Class == AssetClass.Crypto).Skip(i).Take(maxSymbolsAtOnetime);
+                    var symbols = assetSubset.Select(x => x.Symbol).ToList();
+
+                    tradeSubscription = Broker.alpacaCryptoStreamingClient.GetTradeSubscription(symbols);
+                    tradeSubscription.Received += CryptoTradeSubscription_Received;
+                    await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+
+                    quoteSubscription = Broker.alpacaCryptoStreamingClient.GetQuoteSubscription(symbols);
+                    quoteSubscription.Received += CryptoQuoteSubscription_Received;
+                    await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+
+                    barSubscription = Broker.alpacaCryptoStreamingClient.GetMinuteBarSubscription(symbols);
+                    barSubscription.Received += CryptoMinAggrSubscription_Received;
+                    await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+
+                    IEnumerable<IStock> cryptoStocks = LiveStockObjects.GetStocks(AssetClass.Crypto, symbols);
+                    foreach (Stock stock in cryptoStocks)
+                    {
+                        stock.subscribed = true;
+                    }
                 }
             }
             catch (Exception ex) { Console.WriteLine(ex.Message); }
@@ -215,22 +206,28 @@ public class Stock : IStock
             {
                 try
                 {
-                    IEnumerable<IStock> usEquityStocks = LiveStockObjects.GetStocks(AssetClass.UsEquity, symbols);
-                    tradeSubscription = broker.AlpacaDataStreamingClient.GetTradeSubscription(symbols);
-                    tradeSubscription.Received += UsEquityLiveTradeSubscription_Received;
-                    await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
-
-                    quoteSubscription = broker.AlpacaDataStreamingClient.GetQuoteSubscription(symbols);
-                    quoteSubscription.Received += UsEquityLiveQuoteSubscription_Received;
-                    await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
-
-                    barSubscription = broker.AlpacaDataStreamingClient.GetMinuteBarSubscription(symbols);
-                    barSubscription.Received += UsEquityLiveMinAggrSubscription_Received;
-                    await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
-
-                    foreach (Stock stock in usEquityStocks)
+                    for (int i = 0; i < assets.Where(x => x.Class == AssetClass.UsEquity).Count(); i += maxSymbolsAtOnetime)
                     {
-                        stock.subscribed = true;
+                        var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(maxSymbolsAtOnetime);
+                        var symbols = assetSubset.Select(x => x.Symbol).ToList();
+
+                        tradeSubscription = broker.alpacaDataStreamingClient.GetTradeSubscription(symbols);
+                        tradeSubscription.Received += UsEquityLiveTradeSubscription_Received;
+                        await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+
+                        quoteSubscription = broker.alpacaDataStreamingClient.GetQuoteSubscription(symbols);
+                        quoteSubscription.Received += UsEquityLiveQuoteSubscription_Received;
+                        await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+
+                        barSubscription = broker.alpacaDataStreamingClient.GetMinuteBarSubscription(symbols);
+                        barSubscription.Received += UsEquityLiveMinAggrSubscription_Received;
+                        await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+
+                        IEnumerable<IStock> usEquityStocks = LiveStockObjects.GetStocks(AssetClass.Crypto, symbols);
+                        foreach (Stock stock in usEquityStocks)
+                        {
+                            stock.subscribed = true;
+                        }
                     }
                 }
                 catch (Exception ex) { Console.WriteLine(ex.Message); }
@@ -240,22 +237,28 @@ public class Stock : IStock
             {
                 try
                 {
-                    IEnumerable<IStock> usEquityStocks = PaperStockObjects.GetStocks(AssetClass.UsEquity, symbols);
-                    tradeSubscription = broker.AlpacaDataStreamingClient.GetTradeSubscription(symbols);
-                    tradeSubscription.Received += UsEquityPaperTradeSubscription_Received;
-                    await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
-
-                    quoteSubscription = broker.AlpacaDataStreamingClient.GetQuoteSubscription(symbols);
-                    quoteSubscription.Received += UsEquityPaperQuoteSubscription_Received;
-                    await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
-
-                    barSubscription = broker.AlpacaDataStreamingClient.GetMinuteBarSubscription(symbols);
-                    barSubscription.Received += UsEquityPaperMinAggrSubscription_Received;
-                    await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
-
-                    foreach (Stock stock in usEquityStocks)
+                    for (int i = 0; i < assets.Where(x => x.Class == AssetClass.UsEquity).Count(); i += maxSymbolsAtOnetime)
                     {
-                        stock.subscribed = true;
+                        var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(maxSymbolsAtOnetime);
+                        var symbols = assetSubset.Select(x => x.Symbol).ToList();
+
+                        tradeSubscription = broker.alpacaDataStreamingClient.GetTradeSubscription(symbols);
+                        tradeSubscription.Received += UsEquityPaperTradeSubscription_Received;
+                        await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+
+                        quoteSubscription = broker.alpacaDataStreamingClient.GetQuoteSubscription(symbols);
+                        quoteSubscription.Received += UsEquityPaperQuoteSubscription_Received;
+                        await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+
+                        barSubscription = broker.alpacaDataStreamingClient.GetMinuteBarSubscription(symbols);
+                        barSubscription.Received += UsEquityPaperMinAggrSubscription_Received;
+                        await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+
+                        IEnumerable<IStock> usEquityStocks = PaperStockObjects.GetStocks(AssetClass.UsEquity, symbols);
+                        foreach (Stock stock in usEquityStocks)
+                        {
+                            stock.subscribed = true;
+                        }
                     }
                 }
                 catch (Exception ex) { Console.WriteLine(ex.Message); }
@@ -351,12 +354,7 @@ public class Stock : IStock
                     stock = PaperStockObjects.GetStock(symbolAndSnapshot.Key);
                 if (stock != null)
                 {
-                    stock.BidSize = symbolAndSnapshot.Value.Quote?.BidSize;
-                    stock.AskSize = symbolAndSnapshot.Value.Quote?.AskSize;
-                    stock.BidPrice = symbolAndSnapshot.Value.Quote?.BidPrice;
-                    stock.AskPrice = symbolAndSnapshot.Value.Quote?.AskPrice;
-                    stock.BidExchange = symbolAndSnapshot.Value.Quote?.BidExchange;
-                    stock.AskExchange = symbolAndSnapshot.Value.Quote?.AskExchange;
+                    stock.Quote = symbolAndSnapshot.Value?.Quote;
                 }
             }
 
@@ -371,7 +369,7 @@ public class Stock : IStock
                     stock = PaperStockObjects.GetStock(symbolAndTrades.Key);
                 if (stock != null)
                 {
-                    stock.Last = symbolAndTrades.Value.Price;
+                    stock.Trade = symbolAndTrades.Value;
                 }
             }
         }
@@ -387,13 +385,7 @@ public class Stock : IStock
         IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
+            stock.MinuteBar = obj;
         }
     }
 
@@ -407,7 +399,7 @@ public class Stock : IStock
         IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
+            stock.Trade = obj;
         }
     }
 
@@ -421,12 +413,7 @@ public class Stock : IStock
         IStock? stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
+            stock.Quote = obj;
         }
     }
 
@@ -439,13 +426,7 @@ public class Stock : IStock
         IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
+            stock.MinuteBar = obj;
         }
     }
 
@@ -459,7 +440,7 @@ public class Stock : IStock
         IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
+            stock.Trade = obj;
         }
     }
 
@@ -473,12 +454,7 @@ public class Stock : IStock
         IStock? stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
+            stock.Quote = obj;
         }
     }
     #endregion
@@ -494,24 +470,12 @@ public class Stock : IStock
         stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
+            stock.MinuteBar = obj;
         }
         stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Open = obj.Open;
-            stock.Close = obj.Close;
-            stock.High = obj.High;
-            stock.Low = obj.Low;
-            stock.Vwap = obj.Vwap;
-            stock.Volume = obj.Volume;
-            stock.Last = obj.Close;
+            stock.MinuteBar = obj;
         }
     }
 
@@ -526,12 +490,12 @@ public class Stock : IStock
         stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
+            stock.Trade = obj;
         }
         stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.Last = obj.Price;
+            stock.Trade = obj;
         }
     }
 
@@ -546,22 +510,12 @@ public class Stock : IStock
         stock = PaperStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
+            stock.Quote = obj;
         }
         stock = LiveStockObjects.GetStock(obj.Symbol);
         if (stock != null)
         {
-            stock.AskExchange = obj.AskExchange;
-            stock.AskSize = obj.AskSize;
-            stock.AskPrice = obj.AskPrice;
-            stock.BidExchange = obj.BidExchange;
-            stock.BidSize = obj.BidSize;
-            stock.BidPrice = obj.BidPrice;
+            stock.Quote = obj;
         }
     }
     #endregion

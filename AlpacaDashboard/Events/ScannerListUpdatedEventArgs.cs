@@ -5,5 +5,5 @@
 /// </summary>
 public class ScannerListUpdatedEventArgs : EventArgs
 {
-    public Dictionary<string, ISnapshot> ListOfsymbolAndSnapshot { get; set; } = new();
+    public Dictionary<IAsset, ISnapshot?> ListOfAssetAndSnapshot { get; set; } = new();
 }
