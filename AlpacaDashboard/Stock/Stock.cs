@@ -12,8 +12,10 @@ public class Stock : IStock
     public ITradeUpdate? TradeUpdate { get; set; }
     public IBar? MinuteBar { get; set; }
     public bool subscribed { get; set; }
-    public static bool MinutesBarSubscribed = false;
+    public bool lastTradeOpen { get; set; }
     public object Tag { get; set; }
+
+    public static bool MinutesBarSubscribed = false;
 
     public Stock(Broker broker, IAsset asset, string type)
     {
@@ -53,11 +55,12 @@ public class Stock : IStock
         IAlpacaDataSubscription<IQuote>? quoteSubscription = null;
 
         IAsset asset = await broker.GetAsset(symbol);
+        IStock? stock = null;
         if (asset != null)
         {
             if (broker.Environment == TradingEnvironment.Live)
             {
-                IStock? stock = LiveStockObjects.GetStock(symbol);
+                stock = LiveStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
                     stock = new Stock(broker, asset, watchListCategory);
@@ -65,74 +68,71 @@ public class Stock : IStock
             }
             if (broker.Environment == TradingEnvironment.Paper)
             {
-                IStock? stock = PaperStockObjects.GetStock(symbol);
+                stock = PaperStockObjects.GetStock(symbol);
                 if (stock == null)
                 {
                     stock = new Stock(broker, asset, watchListCategory);
                 }
             }
 
-            if (broker.subscribed)
+            if (stock?.subscribed==false)
             {
-
-                if (asset.Class == AssetClass.Crypto)
+                if (broker.subscribed)
                 {
-                    tradeSubscription = Broker.AlpacaCryptoStreamingClient.GetTradeSubscription(symbol);
-                    tradeSubscription.Received += CryptoTradeSubscription_Received;
-                    await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
 
-                    quoteSubscription = Broker.AlpacaCryptoStreamingClient.GetQuoteSubscription(symbol);
-                    quoteSubscription.Received += CryptoQuoteSubscription_Received;
-                    await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
-
-                    barSubscription = Broker.AlpacaCryptoStreamingClient.GetMinuteBarSubscription(symbol);
-                    barSubscription.Received += CryptoMinAggrSubscription_Received;
-                    await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
-                }
-
-                if (broker.Environment == TradingEnvironment.Live)
-                {
-                    IStock? stock = LiveStockObjects.GetStock(symbol);
-                    if (asset.Class == AssetClass.UsEquity)
+                    if (asset.Class == AssetClass.Crypto)
                     {
-                        tradeSubscription = broker.AlpacaDataStreamingClient.GetTradeSubscription(symbol);
-                        tradeSubscription.Received += UsEquityLiveTradeSubscription_Received;
-                        await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+                        tradeSubscription = Broker.AlpacaCryptoStreamingClient.GetTradeSubscription(symbol);
+                        tradeSubscription.Received += CryptoTradeSubscription_Received;
+                        await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
 
-                        quoteSubscription = broker.AlpacaDataStreamingClient.GetQuoteSubscription(symbol);
-                        quoteSubscription.Received += UsEquityLiveQuoteSubscription_Received;
-                        await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+                        quoteSubscription = Broker.AlpacaCryptoStreamingClient.GetQuoteSubscription(symbol);
+                        quoteSubscription.Received += CryptoQuoteSubscription_Received;
+                        await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
 
-                        barSubscription = broker.AlpacaDataStreamingClient.GetMinuteBarSubscription(symbol);
-                        barSubscription.Received += UsEquityLiveMinAggrSubscription_Received;
-                        await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+                        barSubscription = Broker.AlpacaCryptoStreamingClient.GetMinuteBarSubscription(symbol);
+                        barSubscription.Received += CryptoMinAggrSubscription_Received;
+                        await Broker.AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
                     }
 
-                    if (stock != null)
-                        stock.subscribed = true;
-                }
-
-                if (broker.Environment == TradingEnvironment.Paper)
-                {
-                    IStock? stock = PaperStockObjects.GetStock(symbol);
-                    if (asset.Class == AssetClass.UsEquity)
+                    if (broker.Environment == TradingEnvironment.Live)
                     {
-                        tradeSubscription = broker.AlpacaDataStreamingClient.GetTradeSubscription(symbol);
-                        tradeSubscription.Received += UsEquityPaperTradeSubscription_Received;
-                        await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+                        if (asset.Class == AssetClass.UsEquity)
+                        {
+                            tradeSubscription = broker.AlpacaDataStreamingClient.GetTradeSubscription(symbol);
+                            tradeSubscription.Received += UsEquityLiveTradeSubscription_Received;
+                            await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription);
 
-                        quoteSubscription = broker.AlpacaDataStreamingClient.GetQuoteSubscription(symbol);
-                        quoteSubscription.Received += UsEquityPaperQuoteSubscription_Received;
-                        await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+                            quoteSubscription = broker.AlpacaDataStreamingClient.GetQuoteSubscription(symbol);
+                            quoteSubscription.Received += UsEquityLiveQuoteSubscription_Received;
+                            await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription);
 
-                        barSubscription = broker.AlpacaDataStreamingClient.GetMinuteBarSubscription(symbol);
-                        barSubscription.Received += UsEquityPaperMinAggrSubscription_Received;
-                        await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+                            barSubscription = broker.AlpacaDataStreamingClient.GetMinuteBarSubscription(symbol);
+                            barSubscription.Received += UsEquityLiveMinAggrSubscription_Received;
+                            await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription);
+                        }
                     }
 
-                    if (stock != null)
-                        stock.subscribed = true;
+                    if (broker.Environment == TradingEnvironment.Paper)
+                    {
+                        if (asset.Class == AssetClass.UsEquity)
+                        {
+                            tradeSubscription = broker.AlpacaDataStreamingClient.GetTradeSubscription(symbol);
+                            tradeSubscription.Received += UsEquityPaperTradeSubscription_Received;
+                            await broker.AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription);
+
+                            quoteSubscription = broker.AlpacaDataStreamingClient.GetQuoteSubscription(symbol);
+                            quoteSubscription.Received += UsEquityPaperQuoteSubscription_Received;
+                            await broker.AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription);
+
+                            barSubscription = broker.AlpacaDataStreamingClient.GetMinuteBarSubscription(symbol);
+                            barSubscription.Received += UsEquityPaperMinAggrSubscription_Received;
+                            await broker.AlpacaDataStreamingClient.SubscribeAsync(barSubscription);
+                        }
+                    }
                 }
+                if (stock != null)
+                    stock.subscribed = true;
             }
         }
     }
