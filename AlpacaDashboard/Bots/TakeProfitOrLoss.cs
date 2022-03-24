@@ -295,7 +295,7 @@ internal class TakeProfitOrLoss : IBot
                     if (lastTradeId != null)
                     {
                         (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
-
+                        lastTradeId = order?.OrderId;
                         log.Information($"{message}");
                     }
                 }

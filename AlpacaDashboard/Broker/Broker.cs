@@ -377,11 +377,13 @@ public class Broker : IDisposable
         try
         {
             message = $"Bracket {orderSide.ToString()} of {quantity.Value.ToString()} @ {limitPrice.ToString()} with take profit @ {takeProfitLimitPrice.ToString()} and take loss @ {stopLossLimitPrice.ToString() } on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-            orderSide.Bracket(symbol, quantity, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice);
             order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce)
             {
                 ExtendedHours = extendedHours,
-                LimitPrice = limitPrice
+                LimitPrice = limitPrice,
+                TakeProfitLimitPrice = takeProfitLimitPrice,
+                StopLossLimitPrice = stopLossLimitPrice,
+                StopLossStopPrice = stopLossStopPrice
             })
             .ConfigureAwait(false);
             return (order, message);
@@ -546,7 +548,7 @@ public class Broker : IDisposable
 
             await UpdateEnviromentData().ConfigureAwait(false);
         }
-        if (obj.Order.OrderStatus == OrderStatus.New || obj.Order.OrderStatus == OrderStatus.Accepted)
+        if (obj.Order.OrderStatus == OrderStatus.New || obj.Order.OrderStatus == OrderStatus.Accepted || obj.Order.OrderStatus==OrderStatus.Replaced)
         {
             if (stock != null)
                 stock.lastTradeOpen = true;
@@ -554,7 +556,7 @@ public class Broker : IDisposable
             await UpdateOpenOrders().ConfigureAwait(false);
             await UpdateClosedOrders().ConfigureAwait(false);
         }
-        if (obj.Order.OrderStatus == OrderStatus.Canceled)
+        if (obj.Order.OrderStatus == OrderStatus.Canceled || obj.Order.OrderStatus == OrderStatus.Suspended)
         {
             if (stock != null)
                 stock.lastTradeOpen = false;

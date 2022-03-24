@@ -436,9 +436,9 @@ public partial class AlpacaDashboard : Form
         #endregion
 
         //event to receive price updates
-        //Stock.PaperStockUpdated += PaperStock_StockUpdated;
-        //Stock.LiveStockUpdated += LiveStock_StockUpdated;
-        Stock.StockUpdated += Stock_StockUpdated;
+        Stock.PaperStockUpdated += PaperStock_StockUpdated;
+        Stock.LiveStockUpdated += LiveStock_StockUpdated;
+        //Stock.StockUpdated += Stock_StockUpdated;
 
         //subscribe min bar for all symbol
         if (_mySettings.Value.Subscribed)
@@ -1893,7 +1893,9 @@ public partial class AlpacaDashboard : Form
             (IOrder? order, string? message) = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
-            if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders().ConfigureAwait(false); ;
+            if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders().ConfigureAwait(false);
+            //display message
+            MessageBox.Show(message);
         }
         if (Environment == TradingEnvironment.Paper)
         {
@@ -1901,6 +1903,8 @@ public partial class AlpacaDashboard : Form
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await PaperBroker.UpdateOpenOrders().ConfigureAwait(false); ;
+            //display message
+            MessageBox.Show(message);
         }
     }
 

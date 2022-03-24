@@ -23,7 +23,6 @@ public class Stock : IStock
         Asset = asset;
         Tag = type;
 
-        /*
         IStock? stock = null;
         if (broker.Environment == TradingEnvironment.Live)
         {
@@ -43,13 +42,7 @@ public class Stock : IStock
                 PaperStockObjects.Add(this);
             }
         }
-        */
 
-        var stock = StockObjects.GetStock(asset.Symbol);
-        if (stock == null)
-        {
-            StockObjects.Add(this);
-        }
     }
 
     /// <summary>
@@ -329,11 +322,11 @@ public class Stock : IStock
                 {
                     //get all snapshots (not used as quotes are subscribed)
                     await UpdateStocksWithSnapshots(TradingEnvironment.Paper).ConfigureAwait(false);
-                    //await UpdateStocksWithSnapshots(TradingEnvironment.Live).ConfigureAwait(false);
+                    await UpdateStocksWithSnapshots(TradingEnvironment.Live).ConfigureAwait(false);
                 }
                 //update and raise event for GUI
                 GenerateStockUpdatedEvent(TradingEnvironment.Paper);
-                //GenerateStockUpdatedEvent(TradingEnvironment.Live);
+                GenerateStockUpdatedEvent(TradingEnvironment.Live);
 
                 //delay for the UnScibscribedRefreshInterval 
                 await Task.Delay(TimeSpan.FromSeconds(interval), token).ConfigureAwait(false);
@@ -581,7 +574,6 @@ public class Stock : IStock
     {
         try
         {
-            /*
             IEnumerable<IStock>? stockObjects = null;
             if (environment == TradingEnvironment.Live)
             {
@@ -601,16 +593,6 @@ public class Stock : IStock
                 };
                 OnPaperStockUpdatedEvent(suea);
             }
-            */
-
-            // my custom event code
-            var stocks = StockObjects.GetStocks();
-            StockUpdatedEventArgs stockEventArgs = new()
-            {
-                Stocks = stocks,
-                Environment = environment
-            };
-            OnStockUpdatedEvent(stockEventArgs);
         }
         catch (Exception ex)
         {
