@@ -456,7 +456,7 @@ public partial class AlpacaDashboard : Form
             await LiveBroker.UpdateEnviromentData();
 
         //set up initial environment
-        toolStripMenuItemPortfolio.PerformClick();
+        //toolStripMenuItemPortfolio.PerformClick();
 
     }
 
@@ -827,12 +827,15 @@ public partial class AlpacaDashboard : Form
                             if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
                             try
                             {
-                                var marketValue = Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text);
-                                if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
-                                if (stock.Position?.CostBasis != null)
+                                if (item.SubItems[1].Text != "" && item.SubItems[2].Text == "")
                                 {
-                                    var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
-                                    if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
+                                    var marketValue = Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text);
+                                    if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
+                                    if (stock.Position?.CostBasis != null)
+                                    {
+                                        var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
+                                        if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
+                                    }
                                 }
                             }
                             catch (Exception) { }
@@ -1095,11 +1098,11 @@ public partial class AlpacaDashboard : Form
                 IPosition? position = null;
                 if (Environment == TradingEnvironment.Live)
                 {
-                    position = await LiveBroker.GetCurrentPosition(symbol).ConfigureAwait(false);
+                    position = await LiveBroker.GetCurrentPosition(symbol);
                 }
                 if (Environment == TradingEnvironment.Paper)
                 {
-                    position = await PaperBroker.GetCurrentPosition(symbol).ConfigureAwait(false);
+                    position = await PaperBroker.GetCurrentPosition(symbol);
                 }
                 if (position != null && position.Quantity > 0)
                 {
