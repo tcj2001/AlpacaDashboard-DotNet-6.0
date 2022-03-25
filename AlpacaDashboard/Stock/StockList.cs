@@ -142,9 +142,10 @@ public class StockList : IEnumerable<IStock>
     /// Add new Stock
     /// </summary>
     /// <param name="stock"></param>
-    public void Add(Stock stock)
+    public IStock Add(Stock stock)
     {
         Stocks.Enqueue(stock);
+        return stock;
     }
 
     #region enumerator methods

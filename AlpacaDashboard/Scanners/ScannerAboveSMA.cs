@@ -138,7 +138,7 @@ internal class ScannerAboveSMA : IScanner
         }
 
         //subscribe all selected symbols
-        await Stock.Subscribe(Broker, assetLists2, 5000, "Scanner");
+        await Broker.Subscribe(assetLists2, 5000, "Scanner").ConfigureAwait(false); 
 
         //get snapshot again for the above selected assets
         var symbolAndSnapshots2 = await Broker.ListSnapShots(assetLists2, 5000).ConfigureAwait(false);
