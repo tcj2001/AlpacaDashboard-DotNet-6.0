@@ -208,6 +208,9 @@ internal class MeanReversion : IBot
         var isAssetShortable = updatedStock?.Asset?.Shortable;
 
         //assetclass
+        var asset = updatedStock?.Asset;
+
+        //assetclass
         var assetClass = updatedStock?.Asset?.Class;
 
         //if there is open order and and we have a tradeupdate event
@@ -236,7 +239,7 @@ internal class MeanReversion : IBot
                 if (symbol != null)
                 {
                     (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                    symbol, OrderQuantity.Fractional((decimal)positionQuantity), null, close,
+                    asset, OrderQuantity.Fractional((decimal)positionQuantity), null, close,
                     null, null).ConfigureAwait(false);
 
                     log.Information($"Closing exiting long {positionQuantity} position : {message}");
@@ -270,7 +273,7 @@ internal class MeanReversion : IBot
                                 if (updatedStock?.Asset?.Symbol != null)
                                 {
                                     (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                                    updatedStock.Asset.Symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                    asset, OrderQuantity.Fractional(calculatedQty), null, close,
                                     null, null).ConfigureAwait(false);
 
                                     log.Information($"Adding {calculatedQty * close:C2} to short position : {message}");
@@ -301,7 +304,7 @@ internal class MeanReversion : IBot
                             if (symbol != null)
                             {
                                 (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                                symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
                                 null, null).ConfigureAwait(false);
 
                                 log.Information($"Removing {calculatedQty * close:C2} from short position : {message}");
@@ -324,7 +327,7 @@ internal class MeanReversion : IBot
                 if (symbol != null)
                 {
                     (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                    symbol, OrderQuantity.Fractional(-1 * (decimal)positionQuantity), null, close,
+                    asset, OrderQuantity.Fractional(-1 * (decimal)positionQuantity), null, close,
                     null, null).ConfigureAwait(false);
 
                     log.Information($"Removing {positionValue:C2} short position : {message}");
@@ -348,7 +351,7 @@ internal class MeanReversion : IBot
                             if (symbol != null)
                             {
                                 (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                                symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
                                 null, null).ConfigureAwait(false);
 
                                 log.Information($"Adding {calculatedQty * close:C2} to long position : {message}");
@@ -374,7 +377,7 @@ internal class MeanReversion : IBot
                                 if (updatedStock?.Asset?.Symbol != null)
                                 {
                                     (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                                    updatedStock.Asset.Symbol, OrderQuantity.Fractional(calculatedQty), null, close,
+                                    asset, OrderQuantity.Fractional(calculatedQty), null, close,
                                     null, null).ConfigureAwait(false);
 
                                     log.Information($"Removing {calculatedQty * close:C2} from long position : {message}");

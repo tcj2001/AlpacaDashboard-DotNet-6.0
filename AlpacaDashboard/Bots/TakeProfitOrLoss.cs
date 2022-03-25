@@ -221,7 +221,7 @@ internal class TakeProfitOrLoss : IBot
         bool lastTradeOpen = false;
         if (updatedStock != null)
             lastTradeOpen = updatedStock.lastTradeOpen;
-
+        
         //current position
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
 
@@ -231,6 +231,9 @@ internal class TakeProfitOrLoss : IBot
 
         //shortable
         var isAssetShortable = updatedStock?.Asset?.Shortable;
+
+        //assetclass
+        var asset = updatedStock?.Asset;
 
         //assetclass
         var assetClass = updatedStock?.Asset?.Class;
@@ -273,14 +276,14 @@ internal class TakeProfitOrLoss : IBot
                     if (calculatedQty > 0 && position == 0)
                     {
                         (IOrder? order, string? message) = await Broker.SubmitBracketOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                        symbol, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
+                        asset, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
 
                         log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message}");
                     }
                 }
                 else
                 {
-                    if (lastTradeId != null)
+                    if (lastTradeId != null && position == 0)
                     {
                         (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
                         lastTradeId = order?.OrderId;
