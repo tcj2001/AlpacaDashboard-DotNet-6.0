@@ -94,22 +94,16 @@ public partial class AlpacaDashboard : Form
         _logger.LogInformation("AlpacaDashboard {0} at {1}", "Started", tn);
 
         //live
-        if (_liveKey.Value.API_KEY != "")
-        {
-            LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, token);
-            LivePfolioEnableEvents();
-            await LiveBroker.Connect();
-            await LiveBroker.PositionAndOpenOrderAssets();
-        }
+        LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, token);
+        LivePfolioEnableEvents();
+        await LiveBroker.Connect();
+        await LiveBroker.PositionAndOpenOrderAssets();
 
         //paper
-        if (_paperKey.Value.API_KEY != "")
-        {
-            PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, token);
-            PaperPfolioEnableEvents();
-            await PaperBroker.Connect();
-            await PaperBroker.PositionAndOpenOrderAssets();
-        }
+        PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, token);
+        PaperPfolioEnableEvents();
+        await PaperBroker.Connect();
+        await PaperBroker.PositionAndOpenOrderAssets();
 
         #region bots auto generated control and events
         //add bot tabs for defined bot classes
@@ -762,24 +756,26 @@ public partial class AlpacaDashboard : Form
                         {
                             if (item.SubItems[2].Text != stock.Position.Quantity.ToString()) item.SubItems[2].Text = stock.Position.Quantity.ToString();
                         }
-                        if (stock.Trade?.Price.ToString() != "")
+
+                        if (stock.Trade != null)
                         {
                             if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
-                            try
+                        }
+
+                        try
+                        {
+                            if (item.SubItems[1].Text != "" && item.SubItems[2].Text == "")
                             {
-                                if (item.SubItems[1].Text != "" && item.SubItems[2].Text == "")
+                                var marketValue = Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text);
+                                if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
+                                if (stock.Position?.CostBasis != null)
                                 {
-                                    var marketValue = Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text);
-                                    if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
-                                    if (stock.Position?.CostBasis != null)
-                                    {
-                                        var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
-                                        if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
-                                    }
+                                    var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
+                                    if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
                                 }
                             }
-                            catch (Exception) { }
                         }
+                        catch (Exception) { }
                     }
                 }
             }));
