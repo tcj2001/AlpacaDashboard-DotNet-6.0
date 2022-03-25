@@ -68,7 +68,7 @@ internal class ScannerCrypto : IScanner
 
         //subscribe all selected symbols
         IEnumerable<IAsset> assets2 = assetAndSnapshots.Select(x => x.Key).ToList();
-        await Stock.Subscribe(Broker, assets2, 5000, "Scanner").ConfigureAwait(false);
+        await Broker.Subscribe(assets2, 5000, "Scanner").ConfigureAwait(false);
 
         //symbol and snapshot list as passed by the generated event to load listview
         ListOfAssetAndSnapshot = assetAndSnapshots;

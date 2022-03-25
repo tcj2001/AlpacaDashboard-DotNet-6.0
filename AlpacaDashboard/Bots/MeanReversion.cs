@@ -83,15 +83,7 @@ internal class MeanReversion : IBot
         CancellationToken token = source.Token;
 
         //get stock object of the symbol
-        IStock? stock = null;
-        if (Broker.Environment == TradingEnvironment.Paper)
-        {
-            stock = Stock.PaperStockObjects.GetStock(asset);
-        }
-        if (Broker.Environment == TradingEnvironment.Live)
-        {
-            stock = Stock.LiveStockObjects.GetStock(asset);
-        }
+        IStock? stock = Broker.StockObjects.GetStock(asset);
 
         //Run you bot logic until cancelled
         if (stock != null)
@@ -146,15 +138,8 @@ internal class MeanReversion : IBot
             //do while its not ended
             while (!token.IsCancellationRequested)
             {
-                //get update stock data for every loop
-                if (Broker.Environment == TradingEnvironment.Paper)
-                {
-                    updatedStock = Stock.PaperStockObjects.GetStock(stock?.Asset?.Symbol);
-                }
-                if (Broker.Environment == TradingEnvironment.Live)
-                {
-                    updatedStock = Stock.LiveStockObjects.GetStock(stock?.Asset?.Symbol);
-                }
+                //get stock object of the symbol
+                updatedStock = Broker.StockObjects.GetStock(stock?.Asset?.Symbol);
 
                 //your main bot logic here
                 /////////////////////////////////////////////////////////////////////////////////

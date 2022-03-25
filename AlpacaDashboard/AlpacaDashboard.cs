@@ -98,8 +98,8 @@ public partial class AlpacaDashboard : Form
         {
             LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, token);
             LivePfolioEnableEvents();
-            await LiveBroker.Connect();//;
-            await LiveBroker.PositionAndOpenOrderAssets();//;
+            await LiveBroker.Connect();
+            await LiveBroker.PositionAndOpenOrderAssets();
         }
 
         //paper
@@ -107,15 +107,9 @@ public partial class AlpacaDashboard : Form
         {
             PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, token);
             PaperPfolioEnableEvents();
-            await PaperBroker.Connect();//;
-            await PaperBroker.PositionAndOpenOrderAssets();//;
+            await PaperBroker.Connect();
+            await PaperBroker.PositionAndOpenOrderAssets();
         }
-
-        //assign broker to Stock class
-        if (Environment == TradingEnvironment.Live)
-            Stock.Broker = LiveBroker;
-        if (Environment == TradingEnvironment.Paper)
-            Stock.Broker = PaperBroker;
 
         #region bots auto generated control and events
         //add bot tabs for defined bot classes
@@ -183,7 +177,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.WatchList.Assets;
                     instance.ListOfAssetAndPosition = await LiveBroker.GetPositionsforAssetList(assets);
                     var symbols = instance.ListOfAssetAndPosition.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(LiveBroker, symbols, 5000, "Bot").ConfigureAwait(false);
+                    await  LiveBroker.Subscribe(symbols, 5000, "Bot").ConfigureAwait(false);
                 }
                 instances.Add("Live", instance);
             }
@@ -203,7 +197,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.WatchList.Assets;
                     instance.ListOfAssetAndPosition = await PaperBroker.GetPositionsforAssetList(assets);
                     var symbols = instance.ListOfAssetAndPosition.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Bot").ConfigureAwait(false);
+                    await PaperBroker.Subscribe(symbols, 5000, "Bot").ConfigureAwait(false);
                 }
                 instances.Add("Paper", instance);
             }
@@ -344,7 +338,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.watchList.Assets;
                     instance.ListOfAssetAndSnapshot = await LiveBroker.ListSnapShots(assets, 5000);
                     var symbols = instance.ListOfAssetAndSnapshot.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(LiveBroker, symbols, 5000, "Scanner").ConfigureAwait(false);
+                    await LiveBroker.Subscribe(symbols, 5000, "Scanner").ConfigureAwait(false);
                 }
                 instances.Add("Live", instance);
             }
@@ -363,7 +357,7 @@ public partial class AlpacaDashboard : Form
                     var assets = instance.watchList.Assets;
                     instance.ListOfAssetAndSnapshot = await PaperBroker.ListSnapShots(assets, 5000);
                     var symbols = instance.ListOfAssetAndSnapshot.Select(x => x.Key).ToList();
-                    await Stock.Subscribe(PaperBroker, symbols, 5000, "Scanner").ConfigureAwait(false);
+                    await PaperBroker.Subscribe(symbols, 5000, "Scanner").ConfigureAwait(false);
                 }
                 instances.Add("Paper", instance);
             }
@@ -435,31 +429,27 @@ public partial class AlpacaDashboard : Form
 
         #endregion
 
-        //event to receive price updates
-        Stock.PaperStockUpdated += PaperStock_StockUpdated;
-        Stock.LiveStockUpdated += LiveStock_StockUpdated;
-        //Stock.StockUpdated += Stock_StockUpdated;
-
-        //subscribe min bar for all symbol
-        if (_mySettings.Value.Subscribed)
-        {
-            await Stock.SubscribeMinutesBarForAllSymbols(LiveBroker, PaperBroker).ConfigureAwait(false); ;
-        }
-
-        //start a event loop for portfolio and watchlist stock on periodic interval
-        Stock.GenerateEvents(_mySettings.Value.PriceUpdateInterval, token);
-
         //update environment
         if (Environment == TradingEnvironment.Paper)
             await PaperBroker.UpdateEnviromentData();
         if (Environment == TradingEnvironment.Live)
             await LiveBroker.UpdateEnviromentData();
 
+        //Generate events loop
+        await Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await PaperBroker.GenerateEvents().ConfigureAwait(false);
+                await LiveBroker.GenerateEvents().ConfigureAwait(false);
+
+                await Task.Delay(TimeSpan.FromSeconds(_mySettings.Value.PriceUpdateInterval), token).ConfigureAwait(false);
+            }
+        }, token);
+
         //set up initial environment
         //toolStripMenuItemPortfolio.PerformClick();
-
     }
-
     #endregion
 
     #region Event 
@@ -480,6 +470,9 @@ public partial class AlpacaDashboard : Form
         PaperBroker.PositionUpdated += PaperPfolio_PositionUpdated;
         //event to receive account updates;
         PaperBroker.AccountUpdated += PaperPfolio_AccountUpdated;
+        //event to receive stock updates
+        PaperBroker.StockUpdated += PaperBroker_StockUpdated;
+
     }
 
     /// <summary>
@@ -496,73 +489,20 @@ public partial class AlpacaDashboard : Form
         LiveBroker.PositionUpdated += LivePfolio_PositionUpdated;
         //event to receive account updates;
         LiveBroker.AccountUpdated += LivePfolio_AccountUpdated;
+        //event to receive stock updates
+        LiveBroker.StockUpdated += LiveBroker_StockUpdated;
+
     }
 
     #endregion
 
     #region Stock Price Update Logic
-
-    /// <summary>
-    /// event handler for Stock data updated
-    /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
-    private void Stock_StockUpdated(object? sender, EventArgs e)
-    {
-        try
-        {
-            ListView? scannerListView = null;
-            tabControlScanners.Invoke(new MethodInvoker(delegate ()
-            {
-                var instances = (Dictionary<string, IScanner>)tabControlScanners.SelectedTab.Tag;
-                var instance = instances[Environment.ToString()];
-                var sc = (SplitContainer)instance.UiContainer;
-                scannerListView = (ListView)sc.Panel1.Controls[0];
-            }));
-
-            ListView? botListView = null;
-            tabControlBots.Invoke(new MethodInvoker(delegate ()
-            {
-                var instances = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
-                var instance = instances[Environment.ToString()];
-                var sc = (SplitContainer)instance.UiContainer;
-                botListView = (ListView)sc.Panel1.Controls[0];
-            }));
-
-            var stocks = ((StockUpdatedEventArgs)e).Stocks;
-
-            if (stocks != null)
-            {
-                foreach (var stock in stocks)
-                {
-                    //update order box stock
-                    UpdateOrderBoxPrices(stock);
-
-                    //update portfolio position listview
-                    UpdateListViewPositionsPrices(listViewPositions, stock);
-
-                    //update portfolio watchlist listview
-                    UpdateListViewWatchListsQuote(listViewWatchList, stock);
-
-                    //update scanner selected tab watchlist
-                    if (scannerListView != null)
-                        UpdateListViewWatchListsQuote(scannerListView, stock);
-
-                    //update bot selected tab positions
-                    if (botListView != null)
-                        UpdateListViewPositionsPrices(botListView, stock);
-                }
-            }
-        }
-        catch { }
-    }
-
     /// <summary>
     /// event handler for Paper Stock data updated
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private void PaperStock_StockUpdated(object? sender, EventArgs e)
+    private void PaperBroker_StockUpdated(object? sender, EventArgs e)
     {
         if (Environment == TradingEnvironment.Paper)
         {
@@ -620,7 +560,7 @@ public partial class AlpacaDashboard : Form
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private void LiveStock_StockUpdated(object? sender, EventArgs e)
+    private void LiveBroker_StockUpdated(object? sender, EventArgs e)
     {
         if (Environment == TradingEnvironment.Live)
         {
@@ -782,10 +722,10 @@ public partial class AlpacaDashboard : Form
             try
             {
                 IStock? stock = null;
-                if (environment == TradingEnvironment.Live && Stock.LiveStockObjects != null)
-                    stock = Stock.LiveStockObjects.GetStock(pos.Symbol);
-                if (environment == TradingEnvironment.Paper && Stock.PaperStockObjects != null)
-                    stock = Stock.PaperStockObjects.GetStock(pos.Symbol);
+                if (environment == TradingEnvironment.Live)
+                    stock = LiveBroker.StockObjects.GetStock(pos.Symbol);
+                if (environment == TradingEnvironment.Paper)
+                    stock = PaperBroker.StockObjects.GetStock(pos.Symbol);
 
                 if (stock != null)
                 {
@@ -1240,13 +1180,11 @@ public partial class AlpacaDashboard : Form
         if (((CheckBox)sender).Checked)
         {
             Environment = TradingEnvironment.Live;
-            Stock.Broker = LiveBroker;
             await LiveBroker.UpdateEnviromentData();
         }
         else
         {
             Environment = TradingEnvironment.Paper;
-            Stock.Broker = PaperBroker;
             await PaperBroker.UpdateEnviromentData();
         }
 
@@ -1454,11 +1392,11 @@ public partial class AlpacaDashboard : Form
             {
                 if (Environment == TradingEnvironment.Live)
                 {
-                    await Stock.Subscribe(LiveBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false);
+                    await LiveBroker.Subscribe(asset, "Order").ConfigureAwait(false);
                 }
                 if (Environment == TradingEnvironment.Paper)
                 {
-                    await Stock.Subscribe(PaperBroker, textBoxSymbol.Text, "Order").ConfigureAwait(false);
+                    await PaperBroker.Subscribe(asset, "Order").ConfigureAwait(false);
                 }
             }
         }

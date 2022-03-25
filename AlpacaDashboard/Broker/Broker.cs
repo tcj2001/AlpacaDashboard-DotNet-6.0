@@ -43,6 +43,9 @@ public class Broker : IDisposable
     static bool CryptoConnected = false;
     static TradingEnvironment CryptoConnectedEnvironment { get; set; }
 
+    // hold the list of symbols and its data
+    public StockList StockObjects = new();
+
     #endregion
 
     #region constructor
@@ -124,7 +127,9 @@ public class Broker : IDisposable
 
                 //connect only in one environment
                 if (CryptoConnectedEnvironment == Environment)
+                {
                     AlpacaCryptoStreamingClient = AlpacaEnvironment.Paper.GetAlpacaCryptoStreamingClient(secretKey).WithReconnect();
+                }
             }
 
             //Streaming client event
@@ -162,10 +167,15 @@ public class Broker : IDisposable
             await AlpacaStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
             await AlpacaDataStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
 
+            //subscribe minute bar
+            await SubscribeMinutesBarForAllSymbols();
+
             //connect only in one environment
             if (CryptoConnectedEnvironment == Environment)
             {
                 await AlpacaCryptoStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
+
+                await SubscribeCryptoMinutesBarForAllSymbols();
             }
         }
     }
@@ -523,19 +533,14 @@ public class Broker : IDisposable
     private async void AlpacaStreamingClient_OnTradeUpdate(ITradeUpdate obj)
     {
         var asset = await GetAsset(obj.Order.Symbol).ConfigureAwait(false);
+        //subscribe asset
+        await Subscribe(asset,"Portfolio");
 
-        await Stock.Subscribe(this, obj.Order.Symbol, "Portfolio");
-        IStock? stock = null;
-
-        if (Environment == TradingEnvironment.Live && Stock.LiveStockObjects != null)
-            stock = Stock.LiveStockObjects.GetStock(obj.Order.Symbol);
-        if (Environment == TradingEnvironment.Paper && Stock.PaperStockObjects != null)
-            stock = Stock.PaperStockObjects.GetStock(obj.Order.Symbol);
+        //get stock object
+        IStock? stock = StockObjects.GetStock(obj.Order.Symbol);
         if (stock != null)
-        {
             stock.TradeUpdate = obj;
-        }
-        
+                
         if (obj.Order.OrderStatus == OrderStatus.Filled || obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
         {
             var tr = obj.TimestampUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)obj.TimestampUtc, easternZone).ToString();
@@ -543,7 +548,7 @@ public class Broker : IDisposable
             _logger.LogInformation($"Trade : {obj.Order.Symbol}, Current Qty: {obj.PositionQuantity}, Current Price: {obj.Price}, Trade Qty: {obj.Order.FilledQuantity}, " +
                 $"Trade Side {obj.Order.OrderSide}, Fill Price: {obj.Order.AverageFillPrice} TradeId: {obj.Order.OrderId}, TimeEST: {tr}, Current Time: {tn}");
 
-            if(stock!=null)
+            if (stock != null)
                 stock.lastTradeOpen = false;
 
             await UpdateEnviromentData().ConfigureAwait(false);
@@ -568,9 +573,7 @@ public class Broker : IDisposable
         {
             IPosition position = await AlpacaTradingClient.GetPositionAsync(obj.Order.Symbol);
             if (stock != null)
-            {
                 stock.Position = position;
-            }
         }
         catch { }
     }
@@ -600,7 +603,7 @@ public class Broker : IDisposable
     public delegate void AccountUpdatedEventHandler(object sender, AccountUpdatedEventArgs e);
 
     public event EventHandler AccountUpdated = default!;
-    protected virtual void OnAccountUpdated(EventArgs e)
+    protected virtual void OnAccountUpdatedEvent(EventArgs e)
     {
         EventHandler handler = AccountUpdated;
         handler?.Invoke(this, e);
@@ -618,7 +621,7 @@ public class Broker : IDisposable
         {
             Account = account
         };
-        OnAccountUpdated(oauea);
+        OnAccountUpdatedEvent(oauea);
     }
     #endregion
 
@@ -635,7 +638,7 @@ public class Broker : IDisposable
     public delegate void PositionUpdatedEventHandler(object sender, PositionUpdatedEventArgs e);
 
     public event EventHandler PositionUpdated = default!;
-    protected virtual void OnPositionUpdated(EventArgs e)
+    protected virtual void OnPositionUpdatedEvent(EventArgs e)
     {
         EventHandler handler = PositionUpdated;
         handler?.Invoke(this, e);
@@ -655,7 +658,7 @@ public class Broker : IDisposable
             Positions = positions
         };
 
-        OnPositionUpdated(opuea);
+        OnPositionUpdatedEvent(opuea);
     }
     #endregion
 
@@ -680,7 +683,7 @@ public class Broker : IDisposable
 
     public event EventHandler ClosedOrderUpdated = default!;
 
-    protected virtual void OnClosedOrderUpdated(EventArgs e)
+    protected virtual void OnClosedOrderUpdatedEvent(EventArgs e)
     {
         EventHandler handler = ClosedOrderUpdated;
         handler?.Invoke(this, e);
@@ -699,7 +702,7 @@ public class Broker : IDisposable
             ClosedOrders = closedOrders
         };
 
-        OnClosedOrderUpdated(ocouea);
+        OnClosedOrderUpdatedEvent(ocouea);
     }
     #endregion
 
@@ -722,7 +725,7 @@ public class Broker : IDisposable
     public delegate void OpenOrderUpdatedEventHandler(object sender, OpenOrderUpdatedEventArgs e);
 
     public event EventHandler OpenOrderUpdated = default!;
-    protected virtual void OnOpenOrderUpdated(EventArgs e)
+    protected virtual void OnOpenOrderUpdatedEvent(EventArgs e)
     {
         EventHandler handler = OpenOrderUpdated;
         handler?.Invoke(this, e);
@@ -741,8 +744,94 @@ public class Broker : IDisposable
             OpenOrders = openOrders
         };
 
-        OnOpenOrderUpdated(ooruea);
+        OnOpenOrderUpdatedEvent(ooruea);
     }
+    #endregion
+
+    #region Stock Method and UI Events
+    public delegate void StockUpdatedEventHandler(object sender, StockUpdatedEventArgs e);
+
+    public event EventHandler StockUpdated = default!;
+    protected void OnStockUpdatedEvent(EventArgs e)
+    {
+        EventHandler handler = StockUpdated;
+        handler?.Invoke(this, e);
+    }
+
+    /// <summary>
+    /// Generate Stock price updated event for UI
+    /// </summary>
+    public void GenerateStockUpdatedEvent()
+    {
+        try
+        {
+            IEnumerable<IStock>? stockObjects = StockObjects.GetStocks();
+            StockUpdatedEventArgs suea = new()
+            {
+                Stocks = stockObjects.ToList()
+            };
+            OnStockUpdatedEvent(suea);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Update Stock with snapshots (non sucscribed)
+    /// </summary>
+    /// <param name="environment"></param>
+    /// <param name="assetClass"></param>
+    /// <param name="assets"></param>
+    /// <returns></returns>
+    private async Task UpdateStocksWithSnapshots()
+    {
+        IEnumerable<IAsset?>? assets = null;
+        assets = StockObjects.GetAssets();
+
+        if (assets != null)
+        {
+            var symbolAndSnapshotList = await ListSnapShots(assets, 5000).ConfigureAwait(false);
+
+            foreach (var symbolAndSnapshot in symbolAndSnapshotList)
+            {
+                IStock? stock = StockObjects.GetStock(symbolAndSnapshot.Key);
+                if (stock != null)
+                {
+                    stock.Quote = symbolAndSnapshot.Value?.Quote;
+                }
+            }
+
+            var symbolAndTradesList = await ListTrades(assets, 5000).ConfigureAwait(false);
+
+            foreach (var symbolAndTrades in symbolAndTradesList)
+            {
+                IStock? stock = StockObjects.GetStock(symbolAndTrades.Key);
+                if (stock != null)
+                {
+                    stock.Trade = symbolAndTrades.Value;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Method called by UI in loop to generate price update events
+    /// </summary>
+    /// <returns></returns>
+    public async Task GenerateEvents()
+    {
+        if (!subscribed)
+        {
+            //get all snapshots (not used as quotes are subscribed)
+            await UpdateStocksWithSnapshots().ConfigureAwait(false);
+        }
+        //update and raise event for GUI
+        GenerateStockUpdatedEvent();
+    }
+
+
     #endregion
 
     #region Watchlist Methods
@@ -772,6 +861,235 @@ public class Broker : IDisposable
     public async void AddItemToWatchList(IWatchList wl, string symbol)
     {
         await AlpacaTradingClient.AddAssetIntoWatchListByIdAsync(new ChangeWatchListRequest<Guid>(wl.WatchListId, symbol), token).ConfigureAwait(false);
+    }
+    #endregion
+
+    #region Subscribe
+    /// <summary>
+    /// Subscribe Asset
+    /// </summary>
+    /// <param name="asset"></param>
+    /// <param name="type"></param>
+    /// <returns></returns>
+    public async Task Subscribe(IAsset asset, string type)
+    {
+
+        var stock = new Stock(asset, type);
+
+        //add to the list
+        StockObjects.Add(stock);
+
+        IAlpacaDataSubscription<ITrade>? tradeSubscription = null;
+        IAlpacaDataSubscription<IBar>? barSubscription = null;
+        IAlpacaDataSubscription<IQuote>? quoteSubscription = null;
+
+        if (asset != null)
+        {
+            if (subscribed == false)
+            {
+                if (asset.Class == AssetClass.Crypto)
+                {
+                    tradeSubscription = AlpacaCryptoStreamingClient.GetTradeSubscription(asset.Symbol);
+                    tradeSubscription.Received += CryptoTradeSubscription_Received;
+                    await AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
+
+                    quoteSubscription = AlpacaCryptoStreamingClient.GetQuoteSubscription(asset.Symbol);
+                    quoteSubscription.Received += CryptoQuoteSubscription_Received;
+                    await AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
+
+                    barSubscription = AlpacaCryptoStreamingClient.GetMinuteBarSubscription(asset.Symbol);
+                    barSubscription.Received += CryptoMinAggrSubscription_Received;
+                    await AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
+                }
+
+                if (asset.Class == AssetClass.UsEquity)
+                {
+                    tradeSubscription = AlpacaDataStreamingClient.GetTradeSubscription(asset.Symbol);
+                    tradeSubscription.Received += UsEquityTradeSubscription_Received;
+                    await AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription);
+
+                    quoteSubscription = AlpacaDataStreamingClient.GetQuoteSubscription(asset.Symbol);
+                    quoteSubscription.Received += UsEquityQuoteSubscription_Received;
+                    await AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription);
+
+                    barSubscription = AlpacaDataStreamingClient.GetMinuteBarSubscription(asset.Symbol);
+                    barSubscription.Received += UsEquityMinAggrSubscription_Received;
+                    await AlpacaDataStreamingClient.SubscribeAsync(barSubscription);
+                }
+                subscribed = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Subscribe all assets
+    /// </summary>
+    /// <param name="assets"></param>
+    /// <param name="maxSymbolsAtOnetime"></param>
+    /// <param name="watchListCategory"></param>
+    /// <returns></returns>
+    public async Task Subscribe(IEnumerable<IAsset> assets, int maxSymbolsAtOnetime, string type)
+    {
+        foreach (var asset in assets)
+        {
+            //create a new stock object
+            var stock = new Stock(asset, type);
+            //add to the list
+            StockObjects.Add(stock);
+            //set as subscribed    
+            stock.subscribed = true;
+        }
+
+        IAlpacaDataSubscription<ITrade>? tradeSubscription = null;
+        IAlpacaDataSubscription<IBar>? barSubscription = null;
+        IAlpacaDataSubscription<IQuote>? quoteSubscription = null;
+
+        try
+        {
+            for (int i = 0; i < assets.Where(x => x.Class == AssetClass.Crypto).Count(); i += maxSymbolsAtOnetime)
+            {
+                var assetSubset = assets.Where(x => x.Class == AssetClass.Crypto).Skip(i).Take(maxSymbolsAtOnetime);
+                var symbols = assetSubset.Select(x => x.Symbol).ToList();
+
+                tradeSubscription = AlpacaCryptoStreamingClient.GetTradeSubscription(symbols);
+                tradeSubscription.Received += CryptoTradeSubscription_Received;
+                await AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+
+                quoteSubscription = AlpacaCryptoStreamingClient.GetQuoteSubscription(symbols);
+                quoteSubscription.Received += CryptoQuoteSubscription_Received;
+                await AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+
+                barSubscription = AlpacaCryptoStreamingClient.GetMinuteBarSubscription(symbols);
+                barSubscription.Received += CryptoMinAggrSubscription_Received;
+                await AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+
+        try
+        {
+            for (int i = 0; i < assets.Where(x => x.Class == AssetClass.UsEquity).Count(); i += maxSymbolsAtOnetime)
+            {
+                var assetSubset = assets.Where(x => x.Class == AssetClass.UsEquity).Skip(i).Take(maxSymbolsAtOnetime);
+                var symbols = assetSubset.Select(x => x.Symbol).ToList();
+
+                tradeSubscription = AlpacaDataStreamingClient.GetTradeSubscription(symbols);
+                tradeSubscription.Received += UsEquityTradeSubscription_Received;
+                await AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription).ConfigureAwait(false);
+
+                quoteSubscription = AlpacaDataStreamingClient.GetQuoteSubscription(symbols);
+                quoteSubscription.Received += UsEquityQuoteSubscription_Received;
+                await AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription).ConfigureAwait(false);
+
+                barSubscription = AlpacaDataStreamingClient.GetMinuteBarSubscription(symbols);
+                barSubscription.Received += UsEquityMinAggrSubscription_Received;
+                await AlpacaDataStreamingClient.SubscribeAsync(barSubscription).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+    }
+
+    /// <summary>
+    /// Subscribe minute bars for Cryptos
+    /// </summary>
+    /// <returns></returns>
+    public async Task SubscribeCryptoMinutesBarForAllSymbols()
+    {
+        IAlpacaDataSubscription<IBar>? minAggrSubscription = null;
+
+        //only one environment 
+        //Minute aggregated data for all crypto symbol
+        minAggrSubscription = AlpacaCryptoStreamingClient.GetMinuteBarSubscription("*");
+        minAggrSubscription.Received += CryptoMinAggrSubscription_Received;
+        await AlpacaCryptoStreamingClient.SubscribeAsync(minAggrSubscription).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Subscribe Minute Bars for all sysbols in both environment
+    /// </summary>
+    /// <returns></returns>
+    public async Task SubscribeMinutesBarForAllSymbols()
+    {
+        IAlpacaDataSubscription<IBar>? minAggrSubscription = null;
+
+        //Minute aggregated data for all usequity symbol
+        minAggrSubscription = AlpacaDataStreamingClient.GetMinuteBarSubscription("*");
+        minAggrSubscription.Received += UsEquityMinAggrSubscription_Received;
+        await AlpacaDataStreamingClient.SubscribeAsync(minAggrSubscription).ConfigureAwait(false);
+    }
+    #endregion
+
+    #region UsEquity subscription receiving methods
+    /// <summary>
+    /// event handler to minute UsEquity aggregation data from a streaming client
+    /// </summary>
+    /// <param name="obj"></param>
+    private void UsEquityMinAggrSubscription_Received(IBar obj)
+    {
+        IStock? stock = StockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+            stock.MinuteBar = obj;
+    }
+
+    /// <summary>
+    /// event handler to receive UsEquity trade related data in the market
+    /// this get the last price of asset
+    /// </summary>
+    /// <param name="obj"></param>
+    private void UsEquityTradeSubscription_Received(ITrade obj)
+    {
+        IStock? stock = StockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+            stock.Trade = obj;
+    }
+
+    /// <summary>
+    /// event handler to receive UsEquity quote related data in the market
+    /// this get the last price of asset
+    /// </summary>
+    /// <param name="obj"></param>
+    private void UsEquityQuoteSubscription_Received(IQuote obj)
+    {
+        IStock? stock = StockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+            stock.Quote = obj;
+    }
+    #endregion
+
+    #region crypto subscription receiving methods
+    /// <summary>
+    /// event handler to crypto paper minute aggregation data from a streaming client
+    /// </summary>
+    /// <param name="obj"></param>
+    private void CryptoMinAggrSubscription_Received(IBar obj)
+    {
+        IStock? stock = StockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+            stock.MinuteBar = obj;
+    }
+
+    /// <summary>
+    /// event handler to receive crypto paper trade related data in the market
+    /// this get the last price of asset
+    /// </summary>
+    /// <param name="obj"></param>
+    private void CryptoTradeSubscription_Received(ITrade obj)
+    {
+        IStock? stock = StockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+            stock.Trade = obj;
+    }
+
+    /// <summary>
+    /// event handler to receive crypto paper quote related data in the market
+    /// this get the last price of asset
+    /// </summary>
+    /// <param name="obj"></param>
+    private void CryptoQuoteSubscription_Received(IQuote obj)
+    {
+        IStock? stock = StockObjects.GetStock(obj.Symbol);
+        if (stock != null)
+            stock.Quote = obj;
     }
     #endregion
 
@@ -860,8 +1178,8 @@ public class Broker : IDisposable
                         assetAndSnapShots.Add(asset, ss);
                     }
 
-                    //subscribe
-                    await Stock.Subscribe(this, asset.Symbol, "Portfolio").ConfigureAwait(false);
+                    //subscribe asset
+                    await Subscribe(asset, "Portfolio");
                 }
                 catch { }
             }
@@ -869,7 +1187,6 @@ public class Broker : IDisposable
 
         return assetAndSnapShots;
     }
-
 
     /// <summary>
     /// Get Asset of symbol
@@ -1091,8 +1408,6 @@ public class Broker : IDisposable
 
         return fromDate;
     }
-
-
 
     /// <summary>
     /// dispose
