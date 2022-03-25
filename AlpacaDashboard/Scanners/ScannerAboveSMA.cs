@@ -64,6 +64,10 @@ internal class ScannerAboveSMA : IScanner
     //SMA length
     private int _SmaLength = 14;
     public int SmaLength { get => _SmaLength; set => _SmaLength = value; }
+
+    //Refresh Scanner interval
+    private int _refreshInterval = 5;
+    public int RefreshInterval { get => _refreshInterval; set => _refreshInterval = value; }
     #endregion
 
     public ScannerAboveSMA(Broker broker) => Broker = broker;
@@ -73,6 +77,19 @@ internal class ScannerAboveSMA : IScanner
     /// </summary>
     /// <returns></returns>
     public async Task Scan()
+    {
+        var token = new CancellationToken();
+        await Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Scanner().ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMinutes(RefreshInterval), token).ConfigureAwait(false);
+            }
+        }, token);
+    }
+
+    private async Task Scanner()
     {
         List<KeyValuePair<string, IBar>> ListOfSymbolAndLastBar = new();
 
@@ -138,7 +155,7 @@ internal class ScannerAboveSMA : IScanner
         }
 
         //subscribe all selected symbols
-        await Broker.Subscribe(assetLists2, 5000, "Scanner").ConfigureAwait(false); 
+        await Broker.Subscribe(assetLists2, 5000, "Scanner").ConfigureAwait(false);
 
         //get snapshot again for the above selected assets
         var symbolAndSnapshots2 = await Broker.ListSnapShots(assetLists2, 5000).ConfigureAwait(false);

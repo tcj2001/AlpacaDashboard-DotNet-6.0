@@ -1824,7 +1824,8 @@ public partial class AlpacaDashboard : Form
 
         if (Environment == TradingEnvironment.Live)
         {
-            (IOrder? order, string? message) = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
+            var asset = await LiveBroker.GetAsset(textBoxSymbol.Text);
+            (IOrder? order, string? message) = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, asset, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders().ConfigureAwait(false);
@@ -1833,7 +1834,8 @@ public partial class AlpacaDashboard : Form
         }
         if (Environment == TradingEnvironment.Paper)
         {
-            (IOrder? order, string? message) = await PaperBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, textBoxSymbol.Text, orderQuantity, stopPrice,
+            var asset = await LiveBroker.GetAsset(textBoxSymbol.Text);
+            (IOrder? order, string? message) = await PaperBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, asset, orderQuantity, stopPrice,
                 limitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await PaperBroker.UpdateOpenOrders().ConfigureAwait(false); ;

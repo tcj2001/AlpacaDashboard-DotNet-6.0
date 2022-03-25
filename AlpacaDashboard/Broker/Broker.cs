@@ -333,41 +333,45 @@ public class Broker : IDisposable
     /// Submit Order of any type
     /// </summary>
     /// <param name="symbol"></param>
-    /// <param name="quantity"></param>
+    /// <param name="orderQuantity"></param>
     /// <param name="limitPrice"></param>
     /// <param name="orderSide"></param>
     /// <param name="orderType"></param>
     /// <param name="timeInForce"></param>
     /// <returns></returns>
-    public async Task<(IOrder?, string?)> SubmitOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, string symbol, OrderQuantity quantity, decimal? stopPrice,
+    public async Task<(IOrder?, string?)> SubmitOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, IAsset? asset, OrderQuantity orderQuantity, decimal? stopPrice,
         decimal? limitPrice, int? trailOffsetPercentage, decimal? trailOffsetDollars)
     {
         IOrder? order = null;
         string? message = null;
+        
+        string symbol = "";
+        if (asset != null)
+            symbol = asset.Symbol;
 
         try
         {
             switch (orderType)
             {
                 case OrderType.Market:
-                    message = $"Market {orderSide.ToString()} of {quantity.Value.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours }).ConfigureAwait(false);
+                    message = $"Market {orderSide.ToString()} of {orderQuantity.Value.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours }).ConfigureAwait(false);
                     break;
                 case OrderType.Limit:
-                    message = $"Limit {orderSide.ToString()} of {quantity.Value.ToString()} @ {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, LimitPrice = limitPrice }).ConfigureAwait(false);
+                    message = $"Limit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, LimitPrice = limitPrice }).ConfigureAwait(false);
                     break;
                 case OrderType.Stop:
-                    message = $"Stop {orderSide.ToString()} of {quantity.Value.ToString()} @ stop price: {stopPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice }).ConfigureAwait(false);
+                    message = $"Stop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice }).ConfigureAwait(false);
                     break;
                 case OrderType.StopLimit:
-                    message = $"StopLimit {orderSide.ToString()} of {quantity.Value.ToString()} @ stop price {stopPrice.ToString()} and limit price {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, LimitPrice = limitPrice }).ConfigureAwait(false);
+                    message = $"StopLimit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price {stopPrice.ToString()} and limit price {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, LimitPrice = limitPrice }).ConfigureAwait(false);
                     break;
                 case OrderType.TrailingStop:
-                    message = $"TrailingStop {orderSide.ToString()} of {quantity.Value.ToString()} @ stop price: {stopPrice.ToString()} and trailing {trailOffsetDollars.ToString()} {trailOffsetPercentage.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
+                    message = $"TrailingStop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopPrice.ToString()} and trailing {trailOffsetDollars.ToString()} {trailOffsetPercentage.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
                     break;
             }
             return (order, message);
@@ -379,23 +383,77 @@ public class Broker : IDisposable
         }
     }
 
-    public async Task<(IOrder?, string?)> SubmitBracketOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, string symbol, OrderQuantity quantity, 
+    public async Task<(IOrder?, string?)> SubmitBracketOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, IAsset? asset, OrderQuantity orderQuantity, 
         decimal? limitPrice, decimal takeProfitLimitPrice, decimal stopLossStopPrice, decimal stopLossLimitPrice)
     {
         IOrder? order = null;
         string? message = null;
+
+        string symbol = "";
+        if (asset!=null)
+            symbol = asset.Symbol;
+
+        long qty = (long)orderQuantity.Value;
+        if(qty < 1) return (order, "{qty} less 1 not supported yet");
+
         try
         {
-            message = $"Bracket {orderSide.ToString()} of {quantity.Value.ToString()} @ {limitPrice.ToString()} with take profit @ {takeProfitLimitPrice.ToString()} and take loss @ {stopLossLimitPrice.ToString() } on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
-            order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, quantity, orderSide, orderType, timeInForce)
+            message = $"Bracket {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} with take profit @ {takeProfitLimitPrice.ToString()} and take loss @ {stopLossLimitPrice.ToString() } on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()} Extended Hours {extendedHours.ToString()}";
+
+            switch (orderType)
             {
-                ExtendedHours = extendedHours,
-                LimitPrice = limitPrice,
-                TakeProfitLimitPrice = takeProfitLimitPrice,
-                StopLossLimitPrice = stopLossLimitPrice,
-                StopLossStopPrice = stopLossStopPrice
-            })
-            .ConfigureAwait(false);
+                case OrderType.Market:
+                    if (orderSide == OrderSide.Buy)
+                    {
+                        order = await AlpacaTradingClient.PostOrderAsync(MarketOrder.Buy(symbol, qty)
+                            .WithDuration(timeInForce)
+                            .WithExtendedHours(extendedHours)
+                            .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
+                            );
+                    }
+                    else
+                    {
+                        order = await AlpacaTradingClient.PostOrderAsync(MarketOrder.Sell(symbol, qty)
+                            .WithDuration(timeInForce)
+                            .WithExtendedHours(extendedHours)
+                            .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
+                            );
+                    }
+                    break;
+
+                case OrderType.Limit:
+                    if (orderSide == OrderSide.Buy)
+                    {
+                        if (limitPrice != null)
+                            order = await AlpacaTradingClient.PostOrderAsync(LimitOrder.Buy(symbol, qty, (decimal)limitPrice)
+                            .WithDuration(timeInForce)
+                            .WithExtendedHours(extendedHours)
+                            .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
+                            );
+                    }
+                    else
+                    {
+                        if (limitPrice != null)
+                            order = await AlpacaTradingClient.PostOrderAsync(LimitOrder.Sell(symbol, qty, (decimal)limitPrice)
+                            .WithDuration(timeInForce)
+                            .WithExtendedHours(extendedHours)
+                            .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
+                            );
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            //order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce)
+            //{
+            //    ExtendedHours = extendedHours,
+            //    LimitPrice = limitPrice,
+            //    TakeProfitLimitPrice = takeProfitLimitPrice,
+            //    StopLossLimitPrice = stopLossLimitPrice,
+            //    StopLossStopPrice = stopLossStopPrice
+            //})
+            //.ConfigureAwait(false);
             return (order, message);
         }
         catch (Exception ex)
@@ -538,9 +596,11 @@ public class Broker : IDisposable
 
         //get stock object
         IStock? stock = StockObjects.GetStock(obj.Order.Symbol);
-        if (stock != null)
+        if (stock != null) {
             stock.TradeUpdate = obj;
-                
+        }
+     
+        
         if (obj.Order.OrderStatus == OrderStatus.Filled || obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
         {
             var tr = obj.TimestampUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)obj.TimestampUtc, easternZone).ToString();
