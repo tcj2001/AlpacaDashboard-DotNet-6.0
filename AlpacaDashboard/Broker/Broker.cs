@@ -575,7 +575,11 @@ public class Broker : IDisposable
             if (stock != null)
                 stock.Position = position;
         }
-        catch { }
+        catch 
+        {
+            if (stock != null)
+                stock.Position = null;
+        }
     }
 
     #endregion
@@ -1183,6 +1187,14 @@ public class Broker : IDisposable
                 }
                 catch { }
             }
+        }
+
+        //set lastTradOpen
+        foreach (var order in openOrders.ToList())
+        {
+            IStock? stock = StockObjects.GetStock(order.Symbol);
+            if (stock != null)
+                stock.lastTradeOpen = true;
         }
 
         return assetAndSnapShots;

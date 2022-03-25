@@ -58,7 +58,7 @@ internal class MeanReversion : IBot
     public int AverageBars { get => _averageBars; set => _averageBars = value; }
 
     //Scale
-    private int _scale = 200;
+    private int _scale = 10;
     public int Scale { get => _scale; set => _scale = value; }
     #endregion
 
@@ -210,6 +210,13 @@ internal class MeanReversion : IBot
         //assetclass
         var assetClass = updatedStock?.Asset?.Class;
 
+        //if there is open order and and we have a tradeupdate event
+        if (lastTradeOpen && lastTradeId != null)
+        {
+            var res = await Broker.DeleteOpenOrder((Guid)lastTradeId);
+            log.Information($"Closing Open Order {lastTradeId} of Qty {updatedStock?.TradeUpdate?.Order.Quantity}");
+        }
+
         // Make sure we know how much we should spend on our position.
         var account = await Broker.GetAccountDetails();
         var buyingPower = account?.BuyingPower * .10M ?? 0M;
@@ -231,10 +238,8 @@ internal class MeanReversion : IBot
                     (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
                     symbol, OrderQuantity.Fractional((decimal)positionQuantity), null, close,
                     null, null).ConfigureAwait(false);
-                    lastTradeId = order?.OrderId;
-                    lastTradeOpen = order==null ? false : true;
 
-                    log.Information($"{diff} : Closing exiting long {positionQuantity} position : {message}");
+                    log.Information($"Closing exiting long {positionQuantity} position : {message}");
                 }
             }
             else
@@ -264,18 +269,16 @@ internal class MeanReversion : IBot
                             {
                                 if (updatedStock?.Asset?.Symbol != null)
                                 {
-                                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
                                     updatedStock.Asset.Symbol, OrderQuantity.Fractional(calculatedQty), null, close,
                                     null, null).ConfigureAwait(false);
-                                    lastTradeId = order?.OrderId;
-                                    lastTradeOpen = order == null ? false : true;
 
-                                    log.Information($"{diff} : Adding {calculatedQty * close:C2} to short position : {message}");
+                                    log.Information($"Adding {calculatedQty * close:C2} to short position : {message}");
                                 }
                             }
                             else
                             {
-                                log.Information($"{diff} : Unable to place short order - asset is not shortable.");
+                                log.Information($"Unable to place short order - asset is not shortable.");
                             }
                             break;
                         }
@@ -300,10 +303,8 @@ internal class MeanReversion : IBot
                                 (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
                                 symbol, OrderQuantity.Fractional(calculatedQty), null, close,
                                 null, null).ConfigureAwait(false);
-                                lastTradeId = order?.OrderId;
-                                lastTradeOpen = order == null ? false : true;
 
-                                log.Information($"{diff} : Removing {calculatedQty * close:C2} from short position : {message}");
+                                log.Information($"Removing {calculatedQty * close:C2} from short position : {message}");
                             }
                             break;
                         }
@@ -325,10 +326,8 @@ internal class MeanReversion : IBot
                     (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
                     symbol, OrderQuantity.Fractional(-1 * (decimal)positionQuantity), null, close,
                     null, null).ConfigureAwait(false);
-                    lastTradeId = order?.OrderId;
-                    lastTradeOpen = order == null ? false : true;
 
-                    log.Information($"{diff} : Removing {positionValue:C2} short position : {message}");
+                    log.Information($"Removing {positionValue:C2} short position : {message}");
                 }
             }
             else
@@ -351,10 +350,8 @@ internal class MeanReversion : IBot
                                 (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
                                 symbol, OrderQuantity.Fractional(calculatedQty), null, close,
                                 null, null).ConfigureAwait(false);
-                                lastTradeId = order?.OrderId;
-                                lastTradeOpen = order == null ? false : true;
 
-                                log.Information($"{diff} : Adding {calculatedQty * close:C2} to long position : {message}");
+                                log.Information($"Adding {calculatedQty * close:C2} to long position : {message}");
                             }
                             break;
                         }
@@ -379,15 +376,13 @@ internal class MeanReversion : IBot
                                     (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
                                     updatedStock.Asset.Symbol, OrderQuantity.Fractional(calculatedQty), null, close,
                                     null, null).ConfigureAwait(false);
-                                    lastTradeId = order?.OrderId;
-                                    lastTradeOpen = order == null ? false : true;
 
-                                    log.Information($"{diff} : Removing {calculatedQty * close:C2} from long position : {message}");
+                                    log.Information($"Removing {calculatedQty * close:C2} from long position : {message}");
                                 }
                             }
                             else
                             {
-                                log.Information($"{diff} : Unable to place short order - asset is not shortable.");
+                                log.Information($"Unable to place short order - asset is not shortable.");
                             }
                             break;
                         }

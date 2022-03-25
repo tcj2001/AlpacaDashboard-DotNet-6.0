@@ -222,6 +222,9 @@ internal class TakeProfitOrLoss : IBot
         if (updatedStock != null)
             lastTradeOpen = updatedStock.lastTradeOpen;
 
+        //current position
+        var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
+
         //calculate average price
         var avg = closingPrices.Average();
         var diff = avg - close;
@@ -267,7 +270,7 @@ internal class TakeProfitOrLoss : IBot
             {
                 if (!lastTradeOpen)
                 {
-                    if (calculatedQty > 0)
+                    if (calculatedQty > 0 && position == 0)
                     {
                         (IOrder? order, string? message) = await Broker.SubmitBracketOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
                         symbol, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
