@@ -164,7 +164,9 @@ public class Broker : IDisposable
         if (subscribed)
         {
             //connect
+            SendStatusMessage($"Connecting {Environment} Streaming Client");
             await AlpacaStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
+            SendStatusMessage($"Connecting {Environment} Data Streaming Client");
             await AlpacaDataStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
 
             //subscribe minute bar
@@ -173,10 +175,12 @@ public class Broker : IDisposable
             //connect only in one environment
             if (CryptoConnectedEnvironment == Environment)
             {
+                SendStatusMessage($"Connecting {Environment} Crypo Streaming Client");
                 await AlpacaCryptoStreamingClient.ConnectAndAuthenticateAsync().ConfigureAwait(false);
 
                 await SubscribeCryptoMinutesBarForAllSymbols();
             }
+            SendStatusMessage($"{Environment} environment Connected");
         }
     }
     #endregion
@@ -184,27 +188,33 @@ public class Broker : IDisposable
     #region warning and error events
     private void AlpacaStreamingClient_OnWarning(string obj)
     {
+        SendStatusMessage($"{Environment} StreamingClient Warning");
         _logger.LogWarning($"{Environment} StreamingClient Warning");
     }
     private void AlpacaStreamingClient_OnError(Exception obj)
     {
+        SendStatusMessage($"{Environment} StreamingClient Exception {obj.Message}");
         _logger.LogError($"{Environment} StreamingClient Exception {obj.Message}");
     }
 
     private void AlpacaDataStreamingClient_OnWarning(string obj)
     {
+        SendStatusMessage($"{Environment} DataStreamingClient socket warning");
         _logger.LogWarning($"{Environment} DataStreamingClient socket warning");
     }
     private void AlpacaDataStreamingClient_OnError(Exception obj)
     {
+        SendStatusMessage($"{Environment} DataStreamingClient socket error {obj.Message}");
         _logger.LogError($"{Environment} DataStreamingClient socket error {obj.Message}");
     }
     private void AlpacaDataStreamingClient_SocketOpened()
     {
+        SendStatusMessage($"{Environment} DataStreamingClient socket opened");
         _logger.LogInformation($"{Environment} DataStreamingClient socket opened");
     }
     private async void AlpacaDataStreamingClient_Connected(AuthStatus obj)
     {
+        SendStatusMessage($"{Environment} DataStreamingClient Auth status {obj.ToString()}");
         _logger.LogInformation($"{Environment} DataStreamingClient Auth status {obj.ToString()}");
 
         if (obj.ToString() == "Authorized")
@@ -215,24 +225,29 @@ public class Broker : IDisposable
     }
     private void AlpacaDataStreamingClient_SocketClosed()
     {
+        SendStatusMessage($"{Environment} DataStreamingClient socket closed ");
         _logger.LogInformation($"{Environment} DataStreamingClient socket closed ");
     }
 
 
     private void AlpacaCryptoStreamingClient_OnWarning(string obj)
     {
+        SendStatusMessage($"{Environment} CryptoStreamingClient Warning");
         _logger.LogWarning($"{Environment} CryptoStreamingClient Warning");
     }
     private void AlpacaCryptoStreamingClient_OnError(Exception obj)
     {
+        SendStatusMessage($"{Environment} CryptoStreamingClient Exception {obj.Message}");
         _logger.LogError($"{Environment} CryptoStreamingClient Exception {obj.Message}");
     }
     private void AlpacaCryptoStreamingClient_SocketOpened()
     {
+        SendStatusMessage($"{Environment} CryptoStreamingClient socket opened");
         _logger.LogInformation($"{Environment} CryptoStreamingClient socket opened");
     }
     private void AlpacaCryptoStreamingClient_Connected(AuthStatus obj)
     {
+        SendStatusMessage($"{Environment} CryptoStreamingClient Auth status {obj.ToString()}");
         _logger.LogInformation($"{Environment} CryptoStreamingClient Auth status {obj.ToString()}");
 
         if (obj.ToString() == "Authorized")
@@ -243,6 +258,7 @@ public class Broker : IDisposable
     }
     private void AlpacaCryptoStreamingClient_SocketClosed()
     {
+        SendStatusMessage($"{Environment} CryptoStreamingClient socket closed ");
         _logger.LogInformation($"{Environment} CryptoStreamingClient socket closed ");
     }
     #endregion
@@ -283,11 +299,16 @@ public class Broker : IDisposable
             message = $"Replacing {orderId.ToString()} with limit price {limitPrice.ToString()} and stopprice {stopPrice.ToString()} {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}";
             ChangeOrderRequest changeOrderRequest = new ChangeOrderRequest(orderId) { LimitPrice = limitPrice, StopPrice = stopPrice };
             order = await AlpacaTradingClient.PatchOrderAsync(changeOrderRequest, token).ConfigureAwait(false);
+            IStock? stock = StockObjects.GetStock(order.Symbol);
+            if (stock != null)
+                stock.lastReplacedTradeId = order.OrderId;
+            SendStatusMessage($"{message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
+            SendStatusMessage($"{ message + ":" + message}");
             return (null, message + ":" + ex.Message);
         }
     }
@@ -309,6 +330,7 @@ public class Broker : IDisposable
                     await AlpacaTradingClient.PostOrderAsync(MarketOrder.Sell(symbol, orderQuantity));
                 if (position.Quantity < 0)
                     await AlpacaTradingClient.PostOrderAsync(MarketOrder.Buy(symbol, orderQuantity));
+                SendStatusMessage($"Liquidating {symbol} @ market");
             }
         }
         catch { }
@@ -374,11 +396,13 @@ public class Broker : IDisposable
                     order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
                     break;
             }
+            SendStatusMessage($"{message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
+            SendStatusMessage($"{ message + ":" + message}");
             return (null, message + ":" + ex.Message);
         }
     }
@@ -394,7 +418,7 @@ public class Broker : IDisposable
             symbol = asset.Symbol;
 
         long qty = (long)orderQuantity.Value;
-        if(qty < 1) return (order, "{qty} less 1 not supported yet");
+        if(qty < 1) return (order, $"{qty} less then 1 not supported yet");
 
         try
         {
@@ -454,41 +478,17 @@ public class Broker : IDisposable
             //    StopLossStopPrice = stopLossStopPrice
             //})
             //.ConfigureAwait(false);
+            SendStatusMessage($"{message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
+            SendStatusMessage($"{ message + ":" + message}");
             return (null, message + ":" + ex.Message);
         }
     }
 
-
-    /// <summary>
-    /// close a position at market
-    /// </summary>
-    /// <param name="symbol"></param>
-    private async void ClosePositionAtMarket(string symbol)
-    {
-        try
-        {
-            var positionQuantity = (await AlpacaTradingClient.GetPositionAsync(symbol).ConfigureAwait(false)).IntegerQuantity;
-
-            Console.WriteLine("Symbol {1}, Closing position at market price.", symbol);
-            if (positionQuantity > 0)
-            {
-                await AlpacaTradingClient.PostOrderAsync(OrderSide.Sell.Market(symbol, positionQuantity), token).ConfigureAwait(false);
-            }
-            else
-            {
-                await AlpacaTradingClient.PostOrderAsync(OrderSide.Buy.Market(symbol, Math.Abs(positionQuantity)), token).ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogInformation($"{Environment} {symbol} {ex.Message}");
-        }
-    }
 
     /// <summary>
     /// Get latest trade for a symbol
@@ -609,14 +609,20 @@ public class Broker : IDisposable
                 $"Trade Side {obj.Order.OrderSide}, Fill Price: {obj.Order.AverageFillPrice} TradeId: {obj.Order.OrderId}, TimeEST: {tr}, Current Time: {tn}");
 
             if (stock != null)
+            {
                 stock.lastTradeOpen = false;
+                stock.lastReplacedTradeId = null;
+            }
 
             await UpdateEnviromentData().ConfigureAwait(false);
         }
         if (obj.Order.OrderStatus == OrderStatus.New || obj.Order.OrderStatus == OrderStatus.Accepted || obj.Order.OrderStatus==OrderStatus.Replaced)
         {
             if (stock != null)
+            {
                 stock.lastTradeOpen = true;
+                stock.lastReplacedTradeId = null;
+            }
 
             await UpdateOpenOrders().ConfigureAwait(false);
             await UpdateClosedOrders().ConfigureAwait(false);
@@ -624,7 +630,10 @@ public class Broker : IDisposable
         if (obj.Order.OrderStatus == OrderStatus.Canceled || obj.Order.OrderStatus == OrderStatus.Suspended)
         {
             if (stock != null)
+            {
                 stock.lastTradeOpen = false;
+                stock.lastReplacedTradeId = null;
+            }
 
             await UpdateOpenOrders().ConfigureAwait(false);
             await UpdateClosedOrders().ConfigureAwait(false);
@@ -809,6 +818,30 @@ public class Broker : IDisposable
         };
 
         OnOpenOrderUpdatedEvent(ooruea);
+    }
+    #endregion
+
+    #region StatusMessage Method and UI Events
+    public delegate void StatusMessageUpdatedEventHandler(object sender, StatusMessageUpdatedEventArgs e);
+
+    public event EventHandler StatusMessageUpdated = default!;
+    protected void OnStatusMessageUpdatedEvent(EventArgs e)
+    {
+        EventHandler handler = StatusMessageUpdated;
+        handler?.Invoke(this, e);
+    }
+
+    /// <summary>
+    /// Send Status Message
+    /// </summary>
+    /// <param name="Message"></param>
+    public void SendStatusMessage(string message)
+    {
+        StatusMessageUpdatedEventArgs smuea = new()
+        {
+            Message = message
+        };
+        OnStatusMessageUpdatedEvent(smuea);
     }
     #endregion
 
@@ -1498,24 +1531,4 @@ public class Broker : IDisposable
     #endregion
 }
 
-#region Event Arg classes
-public class AccountUpdatedEventArgs : EventArgs
-{
-    public IAccount? Account { get; set; }
-}
-
-public class PositionUpdatedEventArgs : EventArgs
-{
-    public IReadOnlyCollection<IPosition>? Positions { get; set; }
-}
-public class ClosedOrderUpdatedEventArgs : EventArgs
-{
-    public IReadOnlyCollection<IOrder>? ClosedOrders { get; set; }
-}
-public class OpenOrderUpdatedEventArgs : EventArgs
-{
-    public IReadOnlyCollection<IOrder>? OpenOrders { get; set; }
-}
-
-#endregion
 

@@ -99,6 +99,8 @@
             this.toolStripMenuItemStart = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemStop = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemDelete = new System.Windows.Forms.ToolStripMenuItem();
+            this.panelStatus = new System.Windows.Forms.Panel();
+            this.labelMessages = new System.Windows.Forms.Label();
             this.menuStripDashboard.SuspendLayout();
             this.tabControlPortfolio.SuspendLayout();
             this.Positions.SuspendLayout();
@@ -120,6 +122,7 @@
             this.groupBoxSharesOrDollar.SuspendLayout();
             this.groupBoxBuyOrSell.SuspendLayout();
             this.contextMenuStripBot.SuspendLayout();
+            this.panelStatus.SuspendLayout();
             this.SuspendLayout();
             // 
             // menuStripDashboard
@@ -203,7 +206,7 @@
             this.tabControlPortfolio.Location = new System.Drawing.Point(0, 0);
             this.tabControlPortfolio.Name = "tabControlPortfolio";
             this.tabControlPortfolio.SelectedIndex = 0;
-            this.tabControlPortfolio.Size = new System.Drawing.Size(716, 495);
+            this.tabControlPortfolio.Size = new System.Drawing.Size(716, 487);
             this.tabControlPortfolio.TabIndex = 1;
             // 
             // Positions
@@ -213,7 +216,7 @@
             this.Positions.Location = new System.Drawing.Point(4, 24);
             this.Positions.Name = "Positions";
             this.Positions.Padding = new System.Windows.Forms.Padding(3);
-            this.Positions.Size = new System.Drawing.Size(708, 467);
+            this.Positions.Size = new System.Drawing.Size(708, 459);
             this.Positions.TabIndex = 0;
             this.Positions.Text = "Positions";
             // 
@@ -224,7 +227,7 @@
             this.listViewPositions.GridLines = true;
             this.listViewPositions.Location = new System.Drawing.Point(3, 3);
             this.listViewPositions.Name = "listViewPositions";
-            this.listViewPositions.Size = new System.Drawing.Size(702, 461);
+            this.listViewPositions.Size = new System.Drawing.Size(702, 453);
             this.listViewPositions.TabIndex = 0;
             this.listViewPositions.UseCompatibleStateImageBehavior = false;
             this.listViewPositions.View = System.Windows.Forms.View.Details;
@@ -237,7 +240,7 @@
             this.OpenOrders.Location = new System.Drawing.Point(4, 24);
             this.OpenOrders.Name = "OpenOrders";
             this.OpenOrders.Padding = new System.Windows.Forms.Padding(3);
-            this.OpenOrders.Size = new System.Drawing.Size(708, 467);
+            this.OpenOrders.Size = new System.Drawing.Size(708, 459);
             this.OpenOrders.TabIndex = 1;
             this.OpenOrders.Text = "Open Orders";
             // 
@@ -248,7 +251,7 @@
             this.listViewOpenOrders.GridLines = true;
             this.listViewOpenOrders.Location = new System.Drawing.Point(3, 3);
             this.listViewOpenOrders.Name = "listViewOpenOrders";
-            this.listViewOpenOrders.Size = new System.Drawing.Size(702, 461);
+            this.listViewOpenOrders.Size = new System.Drawing.Size(702, 453);
             this.listViewOpenOrders.TabIndex = 0;
             this.listViewOpenOrders.UseCompatibleStateImageBehavior = false;
             this.listViewOpenOrders.View = System.Windows.Forms.View.Details;
@@ -260,7 +263,7 @@
             this.ClosedOrder.Controls.Add(this.listViewClosedOrders);
             this.ClosedOrder.Location = new System.Drawing.Point(4, 24);
             this.ClosedOrder.Name = "ClosedOrder";
-            this.ClosedOrder.Size = new System.Drawing.Size(708, 467);
+            this.ClosedOrder.Size = new System.Drawing.Size(708, 459);
             this.ClosedOrder.TabIndex = 2;
             this.ClosedOrder.Text = "Closed Orders";
             // 
@@ -271,7 +274,7 @@
             this.listViewClosedOrders.GridLines = true;
             this.listViewClosedOrders.Location = new System.Drawing.Point(0, 0);
             this.listViewClosedOrders.Name = "listViewClosedOrders";
-            this.listViewClosedOrders.Size = new System.Drawing.Size(708, 467);
+            this.listViewClosedOrders.Size = new System.Drawing.Size(708, 459);
             this.listViewClosedOrders.TabIndex = 1;
             this.listViewClosedOrders.UseCompatibleStateImageBehavior = false;
             this.listViewClosedOrders.View = System.Windows.Forms.View.Details;
@@ -282,7 +285,7 @@
             this.WatchList.Controls.Add(this.listViewWatchList);
             this.WatchList.Location = new System.Drawing.Point(4, 24);
             this.WatchList.Name = "WatchList";
-            this.WatchList.Size = new System.Drawing.Size(708, 467);
+            this.WatchList.Size = new System.Drawing.Size(708, 459);
             this.WatchList.TabIndex = 3;
             this.WatchList.Text = "WatchList";
             // 
@@ -293,7 +296,7 @@
             this.listViewWatchList.GridLines = true;
             this.listViewWatchList.Location = new System.Drawing.Point(0, 0);
             this.listViewWatchList.Name = "listViewWatchList";
-            this.listViewWatchList.Size = new System.Drawing.Size(708, 467);
+            this.listViewWatchList.Size = new System.Drawing.Size(708, 459);
             this.listViewWatchList.TabIndex = 2;
             this.listViewWatchList.UseCompatibleStateImageBehavior = false;
             this.listViewWatchList.View = System.Windows.Forms.View.Details;
@@ -305,7 +308,7 @@
             this.tabControlBots.Location = new System.Drawing.Point(0, 0);
             this.tabControlBots.Name = "tabControlBots";
             this.tabControlBots.SelectedIndex = 0;
-            this.tabControlBots.Size = new System.Drawing.Size(716, 495);
+            this.tabControlBots.Size = new System.Drawing.Size(716, 487);
             this.tabControlBots.TabIndex = 1;
             this.tabControlBots.Selected += new System.Windows.Forms.TabControlEventHandler(this.TabControlBots_Selected);
             // 
@@ -315,7 +318,7 @@
             this.tabControlScanners.Location = new System.Drawing.Point(0, 0);
             this.tabControlScanners.Name = "tabControlScanners";
             this.tabControlScanners.SelectedIndex = 0;
-            this.tabControlScanners.Size = new System.Drawing.Size(716, 495);
+            this.tabControlScanners.Size = new System.Drawing.Size(716, 487);
             this.tabControlScanners.TabIndex = 1;
             this.tabControlScanners.Selected += new System.Windows.Forms.TabControlEventHandler(this.TabControlScanners_Selected);
             // 
@@ -354,7 +357,7 @@
             // 
             // splitContainerMain
             // 
-            this.splitContainerMain.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainerMain.Dock = System.Windows.Forms.DockStyle.Top;
             this.splitContainerMain.Location = new System.Drawing.Point(0, 24);
             this.splitContainerMain.Name = "splitContainerMain";
             // 
@@ -367,7 +370,7 @@
             // splitContainerMain.Panel2
             // 
             this.splitContainerMain.Panel2.Controls.Add(this.splitContainerRight);
-            this.splitContainerMain.Size = new System.Drawing.Size(997, 495);
+            this.splitContainerMain.Size = new System.Drawing.Size(997, 487);
             this.splitContainerMain.SplitterDistance = 716;
             this.splitContainerMain.TabIndex = 18;
             // 
@@ -393,8 +396,8 @@
             // 
             this.splitContainerRight.Panel2.Controls.Add(this.panelOrder);
             this.splitContainerRight.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.splitContainerRight.Size = new System.Drawing.Size(277, 495);
-            this.splitContainerRight.SplitterDistance = 90;
+            this.splitContainerRight.Size = new System.Drawing.Size(277, 487);
+            this.splitContainerRight.SplitterDistance = 87;
             this.splitContainerRight.TabIndex = 35;
             // 
             // checkBoxLivePaper
@@ -410,6 +413,7 @@
             // 
             // panelOrder
             // 
+            this.panelOrder.BackColor = System.Drawing.SystemColors.AppWorkspace;
             this.panelOrder.Controls.Add(this.panel1);
             this.panelOrder.Controls.Add(this.textBoxAmount);
             this.panelOrder.Controls.Add(this.groupBoxTrailRatePrice);
@@ -432,7 +436,7 @@
             this.panelOrder.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelOrder.Location = new System.Drawing.Point(0, 0);
             this.panelOrder.Name = "panelOrder";
-            this.panelOrder.Size = new System.Drawing.Size(277, 401);
+            this.panelOrder.Size = new System.Drawing.Size(277, 396);
             this.panelOrder.TabIndex = 35;
             // 
             // panel1
@@ -797,35 +801,56 @@
             this.toolStripMenuItemStop,
             this.toolStripMenuItemDelete});
             this.contextMenuStripBot.Name = "contextMenuStripBot";
-            this.contextMenuStripBot.Size = new System.Drawing.Size(181, 92);
+            this.contextMenuStripBot.Size = new System.Drawing.Size(108, 70);
             // 
             // toolStripMenuItemStart
             // 
             this.toolStripMenuItemStart.Name = "toolStripMenuItemStart";
-            this.toolStripMenuItemStart.Size = new System.Drawing.Size(180, 22);
+            this.toolStripMenuItemStart.Size = new System.Drawing.Size(107, 22);
             this.toolStripMenuItemStart.Text = "Start";
             this.toolStripMenuItemStart.Click += new System.EventHandler(this.ToolStripMenuItemStart_Click);
             // 
             // toolStripMenuItemStop
             // 
             this.toolStripMenuItemStop.Name = "toolStripMenuItemStop";
-            this.toolStripMenuItemStop.Size = new System.Drawing.Size(180, 22);
+            this.toolStripMenuItemStop.Size = new System.Drawing.Size(107, 22);
             this.toolStripMenuItemStop.Text = "Stop";
             this.toolStripMenuItemStop.Click += new System.EventHandler(this.ToolStripMenuItemStop_Click);
             // 
             // toolStripMenuItemDelete
             // 
             this.toolStripMenuItemDelete.Name = "toolStripMenuItemDelete";
-            this.toolStripMenuItemDelete.Size = new System.Drawing.Size(180, 22);
+            this.toolStripMenuItemDelete.Size = new System.Drawing.Size(107, 22);
             this.toolStripMenuItemDelete.Text = "Delete";
             this.toolStripMenuItemDelete.Click += new System.EventHandler(this.ToolStripMenuItemDelete_Click);
+            // 
+            // panelStatus
+            // 
+            this.panelStatus.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.panelStatus.BackColor = System.Drawing.Color.SlateGray;
+            this.panelStatus.Controls.Add(this.labelMessages);
+            this.panelStatus.Location = new System.Drawing.Point(0, 514);
+            this.panelStatus.Name = "panelStatus";
+            this.panelStatus.Size = new System.Drawing.Size(994, 19);
+            this.panelStatus.TabIndex = 38;
+            // 
+            // labelMessages
+            // 
+            this.labelMessages.AutoSize = true;
+            this.labelMessages.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.labelMessages.Location = new System.Drawing.Point(0, 4);
+            this.labelMessages.Name = "labelMessages";
+            this.labelMessages.Size = new System.Drawing.Size(16, 15);
+            this.labelMessages.TabIndex = 38;
+            this.labelMessages.Text = "...";
             // 
             // AlpacaDashboard
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.AppWorkspace;
-            this.ClientSize = new System.Drawing.Size(997, 519);
+            this.ClientSize = new System.Drawing.Size(997, 534);
+            this.Controls.Add(this.panelStatus);
             this.Controls.Add(this.splitContainerMain);
             this.Controls.Add(this.menuStripDashboard);
             this.MainMenuStrip = this.menuStripDashboard;
@@ -861,6 +886,8 @@
             this.groupBoxBuyOrSell.ResumeLayout(false);
             this.groupBoxBuyOrSell.PerformLayout();
             this.contextMenuStripBot.ResumeLayout(false);
+            this.panelStatus.ResumeLayout(false);
+            this.panelStatus.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -938,5 +965,7 @@
         private ToolStripMenuItem toolStripMenuItemStart;
         private ToolStripMenuItem toolStripMenuItemStop;
         private ToolStripMenuItem toolStripMenuItemDelete;
+        private Panel panelStatus;
+        private Label labelMessages;
     }
 }

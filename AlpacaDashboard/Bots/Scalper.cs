@@ -1,6 +1,6 @@
 ﻿namespace AlpacaDashboard.Bots;
 
-internal class TakeProfitOrLoss : IBot
+internal class Scalper : IBot
 {
     #region Required
     //Broker Environment
@@ -65,17 +65,13 @@ internal class TakeProfitOrLoss : IBot
     private decimal _profitPercent = 0.5M;
     public decimal ProfitPercent { get => _profitPercent; set => _profitPercent = value; }
 
-    //Loss percentage
-    private decimal _LossPercent = 1.0M;
-    public decimal LossPercent { get => _LossPercent; set => _LossPercent = value; }
-
     #endregion
 
     /// <summary>
     /// Constructor
     /// </summary>
     /// <param name="broker"></param>
-    public TakeProfitOrLoss(Broker broker)
+    public Scalper(Broker broker)
     {
         Broker = broker;
         ActiveAssets = new Dictionary<IAsset, CancellationTokenSource>();
@@ -157,7 +153,7 @@ internal class TakeProfitOrLoss : IBot
                 //your main bot logic here
                 /////////////////////////////////////////////////////////////////////////////////
 
-                updatedStock = await TakeProfitOrLossLogic(log, scale, closingPrices, updatedStock).ConfigureAwait(false);
+                updatedStock = await ScalperLogic(log, scale, closingPrices, updatedStock).ConfigureAwait(false);
 
                 /////////////////////////////////////////////////////////////////////////////////
 
@@ -191,7 +187,7 @@ internal class TakeProfitOrLoss : IBot
     /// <param name="lastTradeOpen"></param>
     /// <param name="lastTradeId"></param>
     /// <returns></returns>
-    private async Task<IStock?> TakeProfitOrLossLogic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
+    private async Task<IStock?> ScalperLogic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
     {
         //wait till minute bar is populated
         if (updatedStock?.MinuteBar == null)
@@ -201,27 +197,28 @@ internal class TakeProfitOrLoss : IBot
         var symbol = updatedStock?.Asset?.Symbol;
         
         //close price
-        var close = updatedStock?.MinuteBar?.Close==null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
-
-        //profit and lost limit prices
-        var takeProfit = 0M;
-        var takeLoss = 0M;
-        if (close!=null)
-        {
-            takeProfit = (decimal)(close + close * ProfitPercent / 100);
-            takeLoss = (decimal)(close - close * LossPercent / 100);
-        }
+        //var close = updatedStock?.MinuteBar?.Close==null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
+        var close = updatedStock?.Trade?.Price ;
 
         //last trade
-        Guid? lastTradeId = Guid.NewGuid();
-        if (updatedStock?.TradeUpdate != null)
-            lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
+
+        //if (updatedStock?.TradeUpdate?.Order.OrderStatus != OrderStatus.Replaced && updatedStock?.TradeUpdate?.Order.OrderId != null)
+        //    lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
 
         //last trade open
         bool lastTradeOpen = false;
         if (updatedStock != null)
             lastTradeOpen = updatedStock.lastTradeOpen;
-        
+
+        //last trade
+        Guid? lastTradeId = Guid.NewGuid();
+        if (updatedStock?.TradeUpdate != null)
+        {
+            lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
+            if (updatedStock?.lastReplacedTradeId != null)
+                lastTradeId = updatedStock.lastReplacedTradeId;
+        }
+
         //current position
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
 
@@ -248,46 +245,52 @@ internal class TakeProfitOrLoss : IBot
         var positionQuantity = updatedStock?.Position?.Quantity == null ? 0M : updatedStock?.Position?.Quantity;
         var positionValue = updatedStock?.Position?.MarketValue == null ? 0M : updatedStock?.Position?.MarketValue;
 
-        //price is above average
-        if (diff < 0)
-        {
-            // Allocate a percent of portfolio 
-            var portfolioShare = -diff / close * scale;
-            var targetPositionValue = 0M;
-            if (assetClass == AssetClass.UsEquity)
-            {
-                if (equity != null && multiplier != null && portfolioShare!=null)
-                    targetPositionValue = (decimal)(equity * multiplier * portfolioShare);
-            }
-            if (assetClass == AssetClass.Crypto)
-            {
-                if (equity != null && multiplier != null && portfolioShare != null)
-                    targetPositionValue = (decimal)(equity * portfolioShare);
-            }
-            var amountToLong = targetPositionValue;
+        //cost basis
+        var cost = updatedStock?.Position?.Quantity * updatedStock?.Position?.CostBasis ?? 0M;
 
+        //profit 
+        var takeProfit = 0M;
+        if (close != null)
+        {
+            takeProfit = (cost + cost * ProfitPercent / 100);
+        }
+        var profit = updatedStock?.Position?.Quantity * close - updatedStock?.Position?.Quantity * updatedStock?.Position?.CostBasis;
+        //price is above average
+        if (diff != 0)
+        {
             //calulate quantity
-            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToLong);
+            decimal calculatedQty = 1 * scale;// CalculateQuantity(close, assetClass, amountToLong);
 
             if (symbol != null)
             {
                 if (!lastTradeOpen)
                 {
-                    if (calculatedQty > 0 && position == 0)
+                    if (calculatedQty > 0 && position == 0 && cost <= equity)
                     {
-                        (IOrder? order, string? message) = await Broker.SubmitBracketOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                        asset, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
+                        (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                                null, null).ConfigureAwait(false);
 
-                        log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message}");
+                        log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message} with {order?.OrderId} : {order?.ClientOrderId}");
                     }
                 }
                 else
                 {
-                    if (lastTradeId != null && position == 0)
+                    if (position == 0)
                     {
-                        (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
-                        lastTradeId = order?.OrderId;
-                        log.Information($"{message}");
+                        if (lastTradeId != null)
+                        {
+                            (IOrder? order, string? message) = await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
+                            log.Information($"{message} with {order?.OrderId} : {order?.ClientOrderId}");
+                        }
+                    }
+                    else if (profit > takeProfit && position > 0)
+                    {
+                        (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
+                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                                null, null).ConfigureAwait(false);
+
+                        log.Information($"Closing order of {calculatedQty * close:C2} with profit : {message}");
                     }
                 }
 

@@ -261,8 +261,8 @@ public partial class AlpacaDashboard : Form
         }
 
         LoadBotDetails(Environment);
-
         #endregion
+
 
         #region scanners auto generated control and events
         //add scanner tabs for defined scanners classes
@@ -466,7 +466,8 @@ public partial class AlpacaDashboard : Form
         PaperBroker.AccountUpdated += PaperPfolio_AccountUpdated;
         //event to receive stock updates
         PaperBroker.StockUpdated += PaperBroker_StockUpdated;
-
+        //event to receive status message
+        PaperBroker.StatusMessageUpdated += PaperBroker_StatusMessageUpdated;
     }
 
     /// <summary>
@@ -485,9 +486,30 @@ public partial class AlpacaDashboard : Form
         LiveBroker.AccountUpdated += LivePfolio_AccountUpdated;
         //event to receive stock updates
         LiveBroker.StockUpdated += LiveBroker_StockUpdated;
+        //event to receive status message
+        LiveBroker.StatusMessageUpdated += LiveBroker_StatusMessageUpdated;
+    }
+    #endregion
 
+    #region Status Message Event Handler
+    private void PaperBroker_StatusMessageUpdated(object? sender, EventArgs e)
+    {
+        string? message = ((StatusMessageUpdatedEventArgs)e).Message;
+        UpdateStatusMessage(message);
+    }
+    private void LiveBroker_StatusMessageUpdated(object? sender, EventArgs e)
+    {
+        string? message = ((StatusMessageUpdatedEventArgs)e).Message;
+        UpdateStatusMessage(message);
     }
 
+    private void UpdateStatusMessage(string? message)
+    {
+        labelMessages.Invoke(new MethodInvoker(delegate ()
+        {
+            if (labelMessages.Text != message) labelMessages.Text = message;
+        }));
+    }
     #endregion
 
     #region Stock Price Update Logic
