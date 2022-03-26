@@ -9,7 +9,8 @@ public interface IStock
     ITradeUpdate? TradeUpdate { get; set; }
     IBar? MinuteBar { get; set; }
     bool subscribed { get; set; }
-    bool lastTradeOpen { get; set; } 
+    bool lastTradeOpen { get; set; }
+    Guid? lastReplacedTradeId { get; set; }
     object Tag { get; set; }
 
 }

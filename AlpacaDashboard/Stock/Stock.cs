@@ -14,6 +14,7 @@ public class Stock : IStock
     public IBar? MinuteBar { get; set; } = default!;
     public bool subscribed { get; set; } = default!;
     public bool lastTradeOpen { get; set; } = default!;
+    public Guid? lastReplacedTradeId { get; set; } = default!;
 
     /// <summary>
     /// instantiate stock object
