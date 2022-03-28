@@ -205,19 +205,9 @@ internal class Scalper : IBot
         //if (updatedStock?.TradeUpdate?.Order.OrderStatus != OrderStatus.Replaced && updatedStock?.TradeUpdate?.Order.OrderId != null)
         //    lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
 
-        //last trade open
-        bool lastTradeOpen = false;
-        if (updatedStock != null)
-            lastTradeOpen = updatedStock.lastTradeOpen;
-
-        //last trade
-        Guid? lastTradeId = Guid.NewGuid();
-        if (updatedStock?.TradeUpdate != null)
-        {
-            lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
-            if (updatedStock?.lastReplacedTradeId != null)
-                lastTradeId = updatedStock.lastReplacedTradeId;
-        }
+        //last trade open and its id
+        bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
+        Guid? lastTradeId = updatedStock?.OrdersWithItsOldOrderId.Keys.LastOrDefault();
 
         //current position
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
@@ -281,7 +271,7 @@ internal class Scalper : IBot
                         if (lastTradeId != null)
                         {
                             (IOrder? order, string? message) = await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
-                            log.Information($"{message} with {order?.OrderId} : {order?.ClientOrderId}");
+                            log.Information($"{message} with {order?.OrderId}");
                         }
                     }
                     else if (profit > takeProfit && position > 0)

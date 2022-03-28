@@ -302,7 +302,13 @@ public class Broker : IDisposable
             order = await AlpacaTradingClient.PatchOrderAsync(changeOrderRequest, token).ConfigureAwait(false);
             IStock? stock = StockObjects.GetStock(order.Symbol);
             if (stock != null)
-                stock.lastReplacedTradeId = order.OrderId;
+            {
+                Guid? oldId = null;
+                if (!stock.OrdersWithItsOldOrderId.TryGetValue(order.OrderId, out oldId))
+                {
+                    stock.OrdersWithItsOldOrderId.Add(order.OrderId, orderId);
+                }
+            }
             SendStatusMessage($"{message}");
             return (order, message);
         }
@@ -610,9 +616,30 @@ public class Broker : IDisposable
         if (stock != null) {
             stock.TradeUpdate = obj;
         }
-     
-        
-        if (obj.Order.OrderStatus == OrderStatus.Filled || obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
+
+
+        if (obj.Order.OrderStatus == OrderStatus.Filled)
+        {
+            var tr = obj.TimestampUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)obj.TimestampUtc, easternZone).ToString();
+            var tn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString();
+
+            message = $"Trade : {obj.Order.Symbol}, Current Qty: {obj.PositionQuantity}, Current Price: {obj.Price}, Trade Qty: {obj.Order.FilledQuantity}, " +
+                $"Trade Side {obj.Order.OrderSide}, Fill Price: {obj.Order.AverageFillPrice} TradeId: {obj.Order.OrderId}, TimeEST: {tr}, Current Time: {tn}";
+            SendStatusMessage(message);
+            _logger.LogInformation(message);
+
+            if (stock != null)
+            {
+                Guid? oldId = null;
+                if (stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                {
+                    stock.OrdersWithItsOldOrderId.Remove(obj.Order.OrderId);
+                }
+            }
+
+            await UpdateEnviromentData().ConfigureAwait(false);
+        }
+        if (obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
         {
             var tr = obj.TimestampUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)obj.TimestampUtc, easternZone).ToString();
             var tn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString();
@@ -620,11 +647,6 @@ public class Broker : IDisposable
                 $"Trade Side {obj.Order.OrderSide}, Fill Price: {obj.Order.AverageFillPrice} TradeId: {obj.Order.OrderId}, TimeEST: {tr}, Current Time: {tn}";
             SendStatusMessage(message);
             _logger.LogInformation(message);
-            if (stock != null)
-            {
-                stock.lastTradeOpen = false;
-                stock.lastReplacedTradeId = null;
-            }
 
             await UpdateEnviromentData().ConfigureAwait(false);
         }
@@ -632,31 +654,47 @@ public class Broker : IDisposable
         {
             if (stock != null)
             {
-                stock.lastTradeOpen = true;
-                stock.lastReplacedTradeId = null;
+                Guid? oldId = null;
+                if(!stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                {
+                    stock.OrdersWithItsOldOrderId.Add(obj.Order.OrderId, null);
+                }
             }
 
             await UpdateOpenOrders().ConfigureAwait(false);
             await UpdateClosedOrders().ConfigureAwait(false);
         }
-        if (obj.Order.OrderStatus == OrderStatus.Canceled || obj.Order.OrderStatus == OrderStatus.Suspended)
+        if (obj.Order.OrderStatus == OrderStatus.Canceled)
         {
             if (stock != null)
             {
-                stock.lastTradeOpen = false;
-                stock.lastReplacedTradeId = null;
+                Guid? oldId = null;
+                if (stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                {
+                    stock.OrdersWithItsOldOrderId.Remove(obj.Order.OrderId);
+                }
             }
-
             await UpdateOpenOrders().ConfigureAwait(false);
             await UpdateClosedOrders().ConfigureAwait(false);
         }
-        if (obj.Order.OrderStatus == OrderStatus.New || obj.Order.OrderStatus == OrderStatus.Accepted || obj.Order.OrderStatus == OrderStatus.Replaced)
+        if (obj.Order.OrderStatus == OrderStatus.Replaced)
         {
             if (stock != null)
             {
-                stock.lastTradeOpen = true;
+                Guid? oldId = null;
+                if (stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                {
+                    stock.OrdersWithItsOldOrderId.Remove(obj.Order.OrderId);
+                }
             }
         }
+        if (obj.Order.OrderStatus == OrderStatus.Suspended)
+        {
+            await UpdateOpenOrders().ConfigureAwait(false);
+            await UpdateClosedOrders().ConfigureAwait(false);
+        }
+
+        //update position in stock
         try
         {
             IPosition position = await AlpacaTradingClient.GetPositionAsync(obj.Order.Symbol);
@@ -742,8 +780,13 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdatePositions()
     {
-
         var positions = await ListPositions().ConfigureAwait(false);
+        foreach(var pos in positions)
+        {
+            IStock? stock = StockObjects.GetStock(pos.Symbol);
+            if (stock != null)
+                stock.Position = pos;
+        }
 
         PositionUpdatedEventArgs opuea = new PositionUpdatedEventArgs
         {
@@ -830,6 +873,19 @@ public class Broker : IDisposable
     public async Task UpdateOpenOrders()
     {
         var openOrders = await OpenOrders().ConfigureAwait(false);
+      
+        foreach (var ord in openOrders)
+        {
+            IStock? stock = StockObjects.GetStock(ord.Symbol);
+            if (stock != null) 
+            {
+                var ordkey = stock.OrdersWithItsOldOrderId.Keys.Where(x => x == ord.OrderId);
+                if (ordkey == null)
+                {
+                    stock.OrdersWithItsOldOrderId.Add(ord.OrderId, null);
+                }
+            }
+        }
 
         OpenOrderUpdatedEventArgs ooruea = new OpenOrderUpdatedEventArgs
         {
@@ -1299,14 +1355,6 @@ public class Broker : IDisposable
                 }
                 catch { }
             }
-        }
-
-        //set lastTradOpen
-        foreach (var order in openOrders.ToList())
-        {
-            IStock? stock = StockObjects.GetStock(order.Symbol);
-            if (stock != null)
-                stock.lastTradeOpen = true;
         }
 
         return assetAndSnapShots;

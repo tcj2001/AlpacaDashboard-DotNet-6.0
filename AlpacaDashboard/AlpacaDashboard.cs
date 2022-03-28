@@ -791,7 +791,7 @@ public partial class AlpacaDashboard : Form
 
                         try
                         {
-                            if (item.SubItems[1].Text != "" && item.SubItems[2].Text == "")
+                            if (item.SubItems[1].Text != "" && item.SubItems[2].Text != "")
                             {
                                 var marketValue = Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text);
                                 if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();

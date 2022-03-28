@@ -10,11 +10,11 @@ public class Stock : IStock
     public IQuote? Quote { get; set; } = default!;
     public ITrade? Trade { get; set; } = default!;
     public IPosition? Position { get; set; } = default!;
+    //hold the order id of the order that was replaced by this order
+    public Dictionary<Guid, Guid?> OrdersWithItsOldOrderId { get; set; } = new Dictionary<Guid, Guid?>();
     public ITradeUpdate? TradeUpdate { get; set; } = default!;
     public IBar? MinuteBar { get; set; } = default!;
     public bool subscribed { get; set; } = default!;
-    public bool lastTradeOpen { get; set; } = default!;
-    public Guid? lastReplacedTradeId { get; set; } = default!;
 
     /// <summary>
     /// instantiate stock object
