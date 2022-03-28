@@ -15,7 +15,6 @@ public class LiveKey
 public class MySettings
 {
     public bool Subscribed { get; set; }
-    public int UnScibscribedRefreshInterval { get; set; }
     public int PriceUpdateInterval { get; set; }
     public string CryptoExchange { get; set; } = default!;
 }

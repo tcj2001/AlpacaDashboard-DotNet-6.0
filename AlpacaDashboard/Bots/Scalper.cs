@@ -245,9 +245,9 @@ internal class Scalper : IBot
 
             if (symbol != null)
             {
-                if (!lastTradeOpen)
+                if (!lastTradeOpen && position == 0)
                 {
-                    if (calculatedQty > 0 && position == 0)
+                    if (calculatedQty > 0)
                     {
                         (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Market, TimeInForce.Gtc, false,
                                 asset, OrderQuantity.Fractional(calculatedQty), null, null,
