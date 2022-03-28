@@ -190,15 +190,9 @@ internal class MeanReversion : IBot
         //close price
         var close = updatedStock?.MinuteBar?.Close == null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
 
-        //last trade
-        Guid? lastTradeId = Guid.NewGuid();
-        if (updatedStock?.TradeUpdate != null)
-            lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
-
-        //last trade open
-        bool lastTradeOpen = false;
-        if (updatedStock != null)
-            lastTradeOpen = updatedStock.lastTradeOpen;
+        //last trade open and its id
+        bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
+        Guid? lastTradeId = updatedStock?.OrdersWithItsOldOrderId.Values.LastOrDefault();
 
         //calculate average price
         var avg = closingPrices.Average();

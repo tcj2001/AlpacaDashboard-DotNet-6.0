@@ -842,8 +842,8 @@
             // 
             // labelMessages
             // 
+            this.labelMessages.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.labelMessages.AutoSize = true;
-            this.labelMessages.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.labelMessages.Location = new System.Drawing.Point(0, 4);
             this.labelMessages.Name = "labelMessages";
             this.labelMessages.Size = new System.Drawing.Size(16, 15);

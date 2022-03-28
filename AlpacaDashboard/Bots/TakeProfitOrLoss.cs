@@ -212,16 +212,10 @@ internal class TakeProfitOrLoss : IBot
             takeLoss = (decimal)(close - close * LossPercent / 100);
         }
 
-        //last trade
-        Guid? lastTradeId = Guid.NewGuid();
-        if (updatedStock?.TradeUpdate != null)
-            lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
+        //last trade open and its id
+        bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
+        Guid? lastTradeId = updatedStock?.OrdersWithItsOldOrderId.Values.LastOrDefault();
 
-        //last trade open
-        bool lastTradeOpen = false;
-        if (updatedStock != null)
-            lastTradeOpen = updatedStock.lastTradeOpen;
-        
         //current position
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
 
