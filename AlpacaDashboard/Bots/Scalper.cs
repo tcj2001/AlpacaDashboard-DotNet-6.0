@@ -62,8 +62,8 @@ internal class Scalper : IBot
     public int Scale { get => _scale; set => _scale = value; }
 
     //profit percentage
-    private decimal _profitPercent = 0.5M;
-    public decimal ProfitPercent { get => _profitPercent; set => _profitPercent = value; }
+    private decimal _profitAmount = 1M;
+    public decimal ProfitAmount { get => _profitAmount; set => _profitAmount = value; }
 
     #endregion
 
@@ -141,8 +141,8 @@ internal class Scalper : IBot
             log.Information($"Closing any open orders for {stock?.Asset?.Symbol}");
 
             //liquidate position
-            await Broker.LiquidatePosition(stock?.Asset?.Symbol);
-            log.Information($"Closing any position for {stock?.Asset?.Symbol}");
+            //await Broker.LiquidatePosition(stock?.Asset?.Symbol);
+            //log.Information($"Closing any position for {stock?.Asset?.Symbol}");
 
             //do while its not ended
             while (!token.IsCancellationRequested)
@@ -233,35 +233,27 @@ internal class Scalper : IBot
 
         // Check how much we currently have in this position.
         var positionQuantity = updatedStock?.Position?.Quantity == null ? 0M : updatedStock?.Position?.Quantity;
-        var positionValue = updatedStock?.Position?.MarketValue == null ? 0M : updatedStock?.Position?.MarketValue;
+        var currentProfit = updatedStock?.Position?.UnrealizedProfitLoss == null ? 0M : updatedStock?.Position?.UnrealizedProfitLoss;
 
-        //cost basis
-        var cost = updatedStock?.Position?.Quantity * updatedStock?.Position?.CostBasis ?? 0M;
-
-        //profit 
-        var takeProfit = 0M;
-        if (close != null)
-        {
-            takeProfit = (cost + cost * ProfitPercent / 100);
-        }
-        var profit = updatedStock?.Position?.Quantity * close - updatedStock?.Position?.Quantity * updatedStock?.Position?.CostBasis;
         //price is above average
-        if (diff != 0)
+        if (diff < 0)
         {
             //calulate quantity
             decimal calculatedQty = 1 * scale;// CalculateQuantity(close, assetClass, amountToLong);
+            if (calculatedQty * close > equity && equity != null && close != null)
+                calculatedQty = Math.Round((decimal)equity / (calculatedQty * (decimal)close), 2);
 
             if (symbol != null)
             {
                 if (!lastTradeOpen)
                 {
-                    if (calculatedQty > 0 && position == 0 && cost <= equity)
+                    if (calculatedQty > 0 && position == 0)
                     {
-                        (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                        (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Market, TimeInForce.Gtc, false,
+                                asset, OrderQuantity.Fractional(calculatedQty), null, null,
                                 null, null).ConfigureAwait(false);
 
-                        log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message}");
+                        log.Information($"Adding market order of {calculatedQty} to long position : {message}");
                     }
                 }
                 else
@@ -274,13 +266,13 @@ internal class Scalper : IBot
                             log.Information($"{message} with {order?.OrderId}");
                         }
                     }
-                    else if (profit > takeProfit && position > 0)
+                    else if (currentProfit > ProfitAmount && position > 0)
                     {
                         (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                                asset, OrderQuantity.Fractional((decimal)position), null, close,
                                 null, null).ConfigureAwait(false);
 
-                        log.Information($"Closing order of {calculatedQty * close:C2} with profit : {message}");
+                        log.Information($"Closing order of {position * close:C2} with profit : {message}");
                     }
                 }
 
