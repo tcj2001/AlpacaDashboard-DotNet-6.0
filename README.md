@@ -62,13 +62,15 @@ These Bots and Scanner as sample implementation, its up to you write new once th
 You will need some knowlege of C# to write these Scanner or Bots.
 
 API keys and SecretKey can provided directly in the appsetting.json  
-or store you key using dotnet user-secret as
+or store your key using dotnet user-secret as
 PaperKey:API_SECRET = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 PaperKey:API_KEY = xxxxxxxxxxxxxxxxxxxx
 LiveKey:API_SECRET =  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 LiveKey:API_KEY = xxxxxxxxxxxxxxxxxxxx 
 
-This Dashborad should also work for non-subscribed users by changing the subscribed setting to false in the appsetting.json file  
+A Log is created for the Dashboard in the Logs folder, also individual logs are created for each bots and asset combination.  
+
+This Dashboard should also work for non-subscribed users by changing the subscribed setting to false in the appsetting.json file.  
 
 Provide your feedback to improve the functionality of Alpaca Dashboard, write new scanner and bots and add to project.    
 
