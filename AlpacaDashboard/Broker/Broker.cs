@@ -296,7 +296,7 @@ public class Broker : IDisposable
         string? message = null;
         try
         {
-            var stpm = stopprice != null ? $"and stopprice {stopPrice.ToString()}" : "";
+            var stpm = stopPrice != null ? $"and stopprice {stopPrice.ToString()}" : "";
             message = $"Replacing {orderId.ToString()} with limit price {limitPrice.ToString()} {stpm} {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}";
             ChangeOrderRequest changeOrderRequest = new ChangeOrderRequest(orderId) { LimitPrice = limitPrice, StopPrice = stopPrice };
             order = await AlpacaTradingClient.PatchOrderAsync(changeOrderRequest, token).ConfigureAwait(false);
