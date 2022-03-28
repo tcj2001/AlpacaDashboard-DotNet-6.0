@@ -357,7 +357,9 @@
             // 
             // splitContainerMain
             // 
-            this.splitContainerMain.Dock = System.Windows.Forms.DockStyle.Top;
+            this.splitContainerMain.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.splitContainerMain.Location = new System.Drawing.Point(0, 24);
             this.splitContainerMain.Name = "splitContainerMain";
             // 
@@ -376,7 +378,8 @@
             // 
             // splitContainerRight
             // 
-            this.splitContainerRight.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainerRight.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.splitContainerRight.Location = new System.Drawing.Point(0, 0);
             this.splitContainerRight.Name = "splitContainerRight";
             this.splitContainerRight.Orientation = System.Windows.Forms.Orientation.Horizontal;
@@ -413,6 +416,9 @@
             // 
             // panelOrder
             // 
+            this.panelOrder.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.panelOrder.BackColor = System.Drawing.SystemColors.AppWorkspace;
             this.panelOrder.Controls.Add(this.panel1);
             this.panelOrder.Controls.Add(this.textBoxAmount);
@@ -433,7 +439,6 @@
             this.panelOrder.Controls.Add(this.buttonConfirm);
             this.panelOrder.Controls.Add(this.labelTimeInForce);
             this.panelOrder.Controls.Add(this.comboBoxTimeInForce);
-            this.panelOrder.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelOrder.Location = new System.Drawing.Point(0, 0);
             this.panelOrder.Name = "panelOrder";
             this.panelOrder.Size = new System.Drawing.Size(277, 396);
@@ -826,12 +831,13 @@
             // 
             // panelStatus
             // 
-            this.panelStatus.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.panelStatus.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.panelStatus.BackColor = System.Drawing.Color.SlateGray;
             this.panelStatus.Controls.Add(this.labelMessages);
             this.panelStatus.Location = new System.Drawing.Point(0, 514);
             this.panelStatus.Name = "panelStatus";
-            this.panelStatus.Size = new System.Drawing.Size(994, 19);
+            this.panelStatus.Size = new System.Drawing.Size(997, 19);
             this.panelStatus.TabIndex = 38;
             // 
             // labelMessages

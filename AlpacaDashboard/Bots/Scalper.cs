@@ -271,7 +271,7 @@ internal class Scalper : IBot
                                 asset, OrderQuantity.Fractional(calculatedQty), null, close,
                                 null, null).ConfigureAwait(false);
 
-                        log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message} with {order?.OrderId} : {order?.ClientOrderId}");
+                        log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message}");
                     }
                 }
                 else
