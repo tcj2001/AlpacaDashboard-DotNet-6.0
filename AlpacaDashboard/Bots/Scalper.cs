@@ -266,7 +266,7 @@ internal class Scalper : IBot
                             log.Information($"{message} with {order?.OrderId}");
                         }
                     }
-                    else if (currentProfit > ProfitAmount && position > 0)
+                    else if (currentProfit > ProfitAmount && position > 0 && !lastTradeOpen)
                     {
                         (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
                                 asset, OrderQuantity.Fractional((decimal)position), null, close,
