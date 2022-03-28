@@ -917,7 +917,7 @@ public partial class AlpacaDashboard : Form
                 var tz = oo.FilledAtUtc == null ? "" : TimeZoneInfo.ConvertTimeFromUtc((DateTime)oo.FilledAtUtc, easternZone).ToString();
                 var ord = $"{oo.OrderType} { oo.OrderSide} @ {oo.LimitPrice} {tz}";
                 item.SubItems.Add(ord);
-                item.SubItems.Add(oo.FilledQuantity.ToString());
+                item.SubItems.Add(oo.Quantity.ToString());
                 item.SubItems.Add(oo.AverageFillPrice.ToString());
                 item.SubItems.Add((oo.Quantity * oo.LimitPrice).ToString());
                 item.SubItems.Add(oo.OrderStatus.ToString());
@@ -986,7 +986,6 @@ public partial class AlpacaDashboard : Form
                     ListViewItem item = lv.FindItemWithText(stock?.Asset?.Symbol, false, 0, false);
                     if (item != null)
                     {
-                        //if (stock.subscribed) item.BackColor = Color.SkyBlue;
                         if (stock?.Quote?.BidSize != null && item.SubItems[1].Text != stock.Quote?.BidSize.ToString()) item.SubItems[1].Text = stock.Quote?.BidSize.ToString();
                         if (stock?.Quote?.BidPrice != null && item.SubItems[2].Text != stock.Quote?.BidPrice.ToString()) item.SubItems[2].Text = stock.Quote?.BidPrice.ToString();
                         if (stock?.Trade?.Price != null && item.SubItems[3].Text != stock.Trade.Price.ToString()) item.SubItems[3].Text = stock.Trade?.Price.ToString();

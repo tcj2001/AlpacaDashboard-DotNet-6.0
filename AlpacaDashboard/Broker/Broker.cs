@@ -309,13 +309,13 @@ public class Broker : IDisposable
                     stock.OrdersWithItsOldOrderId.Add(order.OrderId, orderId);
                 }
             }
-            SendStatusMessage($"{message}");
+            SendStatusMessage($"{Environment} : {message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
-            SendStatusMessage($"{ message + ":" + message}");
+            SendStatusMessage($"{Environment} : { message + ":" + message}");
             return (null, message + ":" + ex.Message);
         }
     }
@@ -337,7 +337,7 @@ public class Broker : IDisposable
                     await AlpacaTradingClient.PostOrderAsync(MarketOrder.Sell(symbol, orderQuantity));
                 if (position.Quantity < 0)
                     await AlpacaTradingClient.PostOrderAsync(MarketOrder.Buy(symbol, orderQuantity));
-                SendStatusMessage($"Liquidating {symbol} @ market");
+                SendStatusMessage($"{Environment} : Liquidating {symbol} @ market");
             }
         }
         catch { }
@@ -408,13 +408,13 @@ public class Broker : IDisposable
                     message += $", OrderId : {order?.OrderId}";
                     break;
             }
-            SendStatusMessage($"{message}");
+            SendStatusMessage($"{Environment} : {message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
-            SendStatusMessage($"{ message + ":" + message}");
+            SendStatusMessage($"{Environment} : { message + ":" + message}");
             return (null, message + ":" + ex.Message);
         }
     }
@@ -493,13 +493,13 @@ public class Broker : IDisposable
             //    StopLossStopPrice = stopLossStopPrice
             //})
             //.ConfigureAwait(false);
-            SendStatusMessage($"{message}");
+            SendStatusMessage($"{Environment} : {message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
-            SendStatusMessage($"{ message + ":" + message}");
+            SendStatusMessage($"{Environment} : { message + ":" + message}");
             return (null, message + ":" + ex.Message);
         }
     }
@@ -625,7 +625,7 @@ public class Broker : IDisposable
 
             message = $"Trade : {obj.Order.Symbol}, Current Qty: {obj.PositionQuantity}, Current Price: {obj.Price}, Trade Qty: {obj.Order.FilledQuantity}, " +
                 $"Trade Side {obj.Order.OrderSide}, Fill Price: {obj.Order.AverageFillPrice} TradeId: {obj.Order.OrderId}, TimeEST: {tr}, Current Time: {tn}";
-            SendStatusMessage(message);
+            SendStatusMessage($"{Environment} : {message}");
             _logger.LogInformation(message);
 
             if (stock != null)

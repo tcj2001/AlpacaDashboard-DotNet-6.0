@@ -45,7 +45,7 @@ Bot classes should implement this interface
 Currently 3 scanner are implemented
 1. ScannerCrypto is a simple scanner which list the Cryto Asset.  
 2. ScannerAboveVolumne make use of SnapShot to filter asset between the given Close price range and above the given Volume.  
-3. ScannerAboveSMA make use of SnapShot to filter asset between the given Close price range and above the given Volume and use OoplesFinance.StockIndicator to select stock above simple moving average, this scanner alos have a logi to refresh scanning every given intervals.  
+3. ScannerAboveSMA make use of SnapShot to filter asset between the given Close price range and above the given Volume and use OoplesFinance.StockIndicator to select stock above simple moving average, this scanner also have a logig to refresh scanning every given intervals.  
 
 These scanner symbols are stored in the Alpca Account as watchlist, so these symbols will get reloaded next time you start this dashboard.  
 
@@ -55,12 +55,25 @@ Currently 3 Bots are implemented
 2. TakeProfitLoss: places a bracket order when the close is above SMA.  
 3. Scalper: Places a market order when close is above SMA and sells the asset as soon as you make a certain profit amount.  
 
-These Bots and Scanner as sample implementation, its up to you write new once that make sense to you, the dashboard provide a frame work to handle position and orders and implement scanner or bots.
+For every asset added in the dashboard, a Stock object is created which updates itself with Quote, Trades, Positions, and Orders  
+Bots make use of this Stock object to build its logic.
 
+These Bots and Scanner as sample implementation, its up to you write new once that make sense to you, the dashboard provide a frame work to handle position and orders and implement scanner or bots.
 You will need some knowlege of C# to write these Scanner or Bots.
+
+API keys and SecretKey can provided directly in the appsetting.json  
+or store you key using dotnet user-secret as
+PaperKey:API_SECRET = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+PaperKey:API_KEY = xxxxxxxxxxxxxxxxxxxx
+LiveKey:API_SECRET =  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+LiveKey:API_KEY = xxxxxxxxxxxxxxxxxxxx 
+
+This Dashborad should also work for non-subscribed users by changing the subscribed setting to false in the appsetting.json file  
+
+Provide your feedback to improve the functionality of Alpaca Dashboard, write new scanner and bots and add to project.    
 
 Check This project @ https://github.com/tcj2001/AlpacaDashboard-DotNet-6.0
 
-Thanks to cheatcountry who helped me optimize some of the code in this project, check his works on OoplesFinance.StockIndicators @ https://github.com/ooples/OoplesFinance.StockIndicators 
+Thanks to cheatcountry who helped me optimize some of the code in this project, check his work of OoplesFinance.StockIndicators @ https://github.com/ooples/OoplesFinance.StockIndicators 
  
 
