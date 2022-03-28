@@ -136,13 +136,15 @@ public partial class AlpacaDashboard : Form
             }
 
             //add control dynamically to the scanner page
-            Panel panel = new();
-            panel.Dock = DockStyle.Fill;
+            Panel panel = new()
+            {
+                Dock = DockStyle.Fill,
+            };
             tp.Controls.Add(panel);
             SplitContainer splitContainer = new()
             {
                 Dock = DockStyle.Fill,
-                Orientation = Orientation.Vertical
+                Orientation = Orientation.Vertical,
             };
             panel.Controls.Add(splitContainer);
             ListView listView = new()
@@ -297,13 +299,13 @@ public partial class AlpacaDashboard : Form
             //add control dynamically to the scanner page
             Panel panel = new()
             {
-                Dock = DockStyle.Fill
+                Dock = DockStyle.Fill,
             };
             tp.Controls.Add(panel);
             SplitContainer splitContainer = new()
             {
                 Dock = DockStyle.Fill,
-                Orientation = Orientation.Vertical
+                Orientation = Orientation.Vertical,
             };
             panel.Controls.Add(splitContainer);
             ListView listView = new()
@@ -428,6 +430,9 @@ public partial class AlpacaDashboard : Form
             await PaperBroker.UpdateEnviromentData();
         if (Environment == TradingEnvironment.Live)
             await LiveBroker.UpdateEnviromentData();
+
+        //Status all connected
+        labelMessages.Text = "Dashboard Ready";
 
         //Generate events loop
         await Task.Run(async () =>
