@@ -1,44 +1,43 @@
 ﻿# Alpaca Dashboard (.Net 6.0)
 ![Imgur](https://i.imgur.com/7k2MXsY.png)  
 
-This is Alpaca Dashboard which will allow you to manage you portfolio in Live and Paper Environment. It will list your open position, open orders, closed orders and watchlist of open positions, these will show real time updates on the close price, position, market value, profit/loss, bid price and ask price for each position.
+This is Alpaca Dashboard which will allow you to manage your portfolio in Live and Paper Environment. It will list your open position, open orders, closed orders and watchlist of open positions, these list will show real time updates on the close price, position, market value, profit/loss, bid price and ask price for each assets.
 Account data like buying power will updated realtime. You will also have the ability to submit new order or close position etc.  
 
-You can build Scanner and Bots classes easily by implementing its interfaces. each implemented scanner will be automaticlly displayed in UI along with its imput parameters.  
+You can build your own Scanner and Bots classes easily by implementing its interfaces. each implemented scanner will be automaticlly displayed in UI along with its input parameters.
 
-Portfolio screen  
+Portfolio screen showing open position for the selected environment.    
 ![Imgur](https://i.imgur.com/y3wP9d4.png)  
 
-Open Order Screen  
+Open Order Screen.  
 ![Imgur](https://i.imgur.com/ZP09z3B.png)  
 
-Context menu to add a Position symbol to any defined Bot  
+Context menu to add a Position symbol to any defined Bot.  
 ![Imgur](https://i.imgur.com/KQvGIRi.png)  
 
-
-List of Closed Order  
+List of Closed Order.    
 ![Imgur](https://i.imgur.com/KCeNEk8.png)  
 
-Position Watchlist  
+Position Watchlist.    
 ![Imgur](https://i.imgur.com/XXvzkRg.png)  
 
-Context menu to add a symbol to any defined Bot from watchlist  
+Context menu to add a symbol to any defined Bot from watchlist.  
 ![Imgur](https://i.imgur.com/coNxk4v.png)  
 
-Scanners  
+Scanners, this tab will list all the scanners classes implemented based on the IScanner interface.  
 ![Imgur](https://i.imgur.com/5cdraN1.png)  
 
 Context menu to add a symbol to any defined Bot from scanner list  
 ![Imgur](https://i.imgur.com/6VXCOa0.png)  
 
-Bots  
+Scanner class should implement this Interface  
+![Imgur](https://i.imgur.com/PZOUj45.png)  
+
+Bots, this tab will list all the scanners classes implemented based on the IBots interface.    
 ![Imgur](https://i.imgur.com/L1HRD59.png)  
 
 Option to start, end or delete a Bot for a selected sysmbol  
 ![Imgur](https://i.imgur.com/CKCOqAq.png)  
-
-Scanner class should implement this Interface  
-![Imgur](https://i.imgur.com/PZOUj45.png)  
 
 Bot classes should implement this interface  
 ![Imgur](https://i.imgur.com/JjXiCMO.png)  
@@ -49,7 +48,6 @@ Currently 3 scanners are implemented.
 3. ScannerAboveSMA make use of SnapShot to filter asset between the given Close price range and above the given Volume and uses OoplesFinance.StockIndicator to select stock above simple moving average, this scanner also have a logic to run scanner every given intervals.  
 
 These scanner symbols are stored in the Alpca Account as watchlist, so these scanner will get reloaded with last scanned list next time you start this dashboard.  
-
 
 Currently 3 Bots are implemented.  
 1. MeanReversion:
