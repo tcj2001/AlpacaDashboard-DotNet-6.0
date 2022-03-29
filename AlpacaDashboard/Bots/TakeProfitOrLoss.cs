@@ -197,20 +197,19 @@ internal class TakeProfitOrLoss : IBot
         if (updatedStock?.MinuteBar == null)
             return updatedStock;
 
+        //close price
+        var close = updatedStock?.Trade?.Price ?? 0M;
+        if (close == 0)
+            return updatedStock;
+        
         //symbol
         var symbol = updatedStock?.Asset?.Symbol;
         
-        //close price
-        var close = updatedStock?.MinuteBar?.Close==null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
-
         //profit and lost limit prices
         var takeProfit = 0M;
         var takeLoss = 0M;
-        if (close!=null)
-        {
-            takeProfit = (decimal)(close + close * ProfitPercent / 100);
-            takeLoss = (decimal)(close - close * LossPercent / 100);
-        }
+        takeProfit = (decimal)(close + close * ProfitPercent / 100);
+        takeLoss = (decimal)(close - close * LossPercent / 100);
 
         //last trade open and its id
         bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
@@ -220,7 +219,7 @@ internal class TakeProfitOrLoss : IBot
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
 
         //calculate average price
-        var avg = closingPrices.Average();
+        var avg = closingPrices.Average() ?? 0M;
         var diff = avg - close;
 
         //shortable
@@ -239,71 +238,54 @@ internal class TakeProfitOrLoss : IBot
         var multiplier = ((decimal?)account?.Multiplier);
 
         // Check how much we currently have in this position.
-        var positionQuantity = updatedStock?.Position?.Quantity == null ? 0M : updatedStock?.Position?.Quantity;
-        var positionValue = updatedStock?.Position?.MarketValue == null ? 0M : updatedStock?.Position?.MarketValue;
+        var positionQuantity = updatedStock?.Position?.Quantity ?? 0M;
+        var positionValue = updatedStock?.Position?.MarketValue ?? 0M;
 
-        //price is above average
-        if (diff < 0)
+        // Allocate a percent of portfolio 
+        var amountToLong = buyingPower;
+
+        //calculate quantity
+        decimal calculatedQty = CalculateQuantity(assetClass, amountToLong, close);
+        if (calculatedQty == 0)
+            return updatedStock;
+
+        if (symbol != null)
         {
-            // Allocate a percent of portfolio 
-            var portfolioShare = -diff / close * scale;
-            var targetPositionValue = 0M;
-            if (assetClass == AssetClass.UsEquity)
+            if (!lastTradeOpen)
             {
-                if (equity != null && multiplier != null && portfolioShare!=null)
-                    targetPositionValue = (decimal)(equity * multiplier * portfolioShare);
-            }
-            if (assetClass == AssetClass.Crypto)
-            {
-                if (equity != null && multiplier != null && portfolioShare != null)
-                    targetPositionValue = (decimal)(equity * portfolioShare);
-            }
-            var amountToLong = targetPositionValue;
-
-            //calulate quantity
-            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToLong);
-
-            if (symbol != null)
-            {
-                if (!lastTradeOpen)
+                if (calculatedQty > 0 && position == 0)
                 {
-                    if (calculatedQty > 0 && position == 0)
-                    {
-                        (IOrder? order, string? message) = await Broker.SubmitBracketOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                        asset, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
+                    (IOrder? order, string? message) = await Broker.SubmitBracketOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                    asset, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
 
-                        log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message}");
-                    }
+                    log.Information($"Adding order of {calculatedQty * close:C2} to long position : {message}");
                 }
-                else
+            }
+            else
+            {
+                if (lastTradeId != null && position == 0)
                 {
-                    if (lastTradeId != null && position == 0)
-                    {
-                        (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
-                        lastTradeId = order?.OrderId;
-                        log.Information($"{message}");
-                    }
+                    (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
+                    lastTradeId = order?.OrderId;
+                    log.Information($"{message}");
                 }
-
             }
         }
         return updatedStock;
     }
 
-    private static decimal CalculateQuantity(decimal? close, AssetClass? assetClass, decimal? amount)
+    private static decimal CalculateQuantity(AssetClass? assetClass, decimal amount, decimal close)
     {
         var calculatedQty = 0M;
         if (assetClass == AssetClass.UsEquity)
         {
-            if (amount != null && close != null)
-                calculatedQty = (Int64)(amount / close);
+            calculatedQty = (Int64)(amount / close);
         }
         if (assetClass == AssetClass.Crypto)
         {
-            if (amount != null && close != null)
-                calculatedQty = (decimal)amount / (decimal)close;
+            calculatedQty = amount / close;
         }
 
-        return Math.Round(calculatedQty,3);
+        return Math.Round(calculatedQty, 2);
     }
 }

@@ -192,19 +192,15 @@ internal class Scalper : IBot
         //wait till minute bar is populated
         if (updatedStock?.MinuteBar == null)
             return updatedStock;
+       
+        //close price
+        var close = updatedStock?.Trade?.Price ?? 0M;
+        if (close==0)
+            return updatedStock;
 
         //symbol
         var symbol = updatedStock?.Asset?.Symbol;
         
-        //close price
-        //var close = updatedStock?.MinuteBar?.Close==null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
-        var close = updatedStock?.Trade?.Price ;
-
-        //last trade
-
-        //if (updatedStock?.TradeUpdate?.Order.OrderStatus != OrderStatus.Replaced && updatedStock?.TradeUpdate?.Order.OrderId != null)
-        //    lastTradeId = updatedStock?.TradeUpdate?.Order.OrderId;
-
         //last trade open and its id
         bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
         Guid? lastTradeId = updatedStock?.OrdersWithItsOldOrderId.Keys.LastOrDefault();
@@ -214,7 +210,7 @@ internal class Scalper : IBot
 
         //calculate average price
         var avg = closingPrices.Average();
-        var diff = avg - close;
+        var diff = (avg - close) ?? 0M;
 
         //shortable
         var isAssetShortable = updatedStock?.Asset?.Shortable;
@@ -227,74 +223,71 @@ internal class Scalper : IBot
 
         // Make sure we know how much we should spend on our position.
         var account = await Broker.GetAccountDetails();
+        //use 1/10 of the buying power
         var buyingPower = account?.BuyingPower *.10M ?? 0M;
         var equity = account?.Equity;
         var multiplier = ((decimal?)account?.Multiplier);
 
         // Check how much we currently have in this position.
-        var positionQuantity = updatedStock?.Position?.Quantity == null ? 0M : updatedStock?.Position?.Quantity;
-        var currentProfit = updatedStock?.Position?.UnrealizedProfitLoss == null ? 0M : updatedStock?.Position?.UnrealizedProfitLoss;
+        var positionQuantity = updatedStock?.Position?.Quantity ?? 0M;
+        var currentProfit = updatedStock?.Position?.UnrealizedProfitLoss ?? 0M;
 
-        //price is above average
-        if (diff < 0)
+        // Allocate a percent of portfolio 
+        var amountToLong = buyingPower;
+
+        //calculate quantity
+        var calculatedQty = CalculateQuantity(assetClass, amountToLong, close);
+        if (calculatedQty == 0)
+            return updatedStock;
+
+        if (symbol != null)
         {
-            //calulate quantity
-            decimal calculatedQty = 1 * scale;// CalculateQuantity(close, assetClass, amountToLong);
-            if (calculatedQty * close > equity && equity != null && close != null)
-                calculatedQty = Math.Round((decimal)equity / (calculatedQty * (decimal)close), 2);
-
-            if (symbol != null)
+            if (!lastTradeOpen && position == 0)
             {
-                if (!lastTradeOpen && position == 0)
+                if (calculatedQty > 0)
                 {
-                    if (calculatedQty > 0)
-                    {
-                        (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Market, TimeInForce.Gtc, false,
-                                asset, OrderQuantity.Fractional(calculatedQty), null, null,
-                                null, null).ConfigureAwait(false);
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Market, TimeInForce.Day, false,
+                            asset, OrderQuantity.Fractional(calculatedQty), null, null,
+                            null, null).ConfigureAwait(false);
 
-                        log.Information($"Adding market order of {calculatedQty} to long position : {message}");
+                    log.Information($"Adding market order of {calculatedQty} to long position : {message}");
+                }
+            }
+            else
+            {
+                if (position == 0)
+                {
+                    if (lastTradeId != null)
+                    {
+                        (IOrder? order, string? message) = await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
+                        log.Information($"{message} with {order?.OrderId}");
                     }
                 }
-                else
+                else if (currentProfit > ProfitAmount && position > 0 && !lastTradeOpen)
                 {
-                    if (position == 0)
-                    {
-                        if (lastTradeId != null)
-                        {
-                            (IOrder? order, string? message) = await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
-                            log.Information($"{message} with {order?.OrderId}");
-                        }
-                    }
-                    else if (currentProfit > ProfitAmount && position > 0 && !lastTradeOpen)
-                    {
-                        (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                                asset, OrderQuantity.Fractional((decimal)position), null, close,
-                                null, null).ConfigureAwait(false);
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Day, false,
+                            asset, OrderQuantity.Fractional((decimal)position), null, close,
+                            null, null).ConfigureAwait(false);
 
-                        log.Information($"Closing order of {position * close:C2} with profit : {message}");
-                    }
+                    log.Information($"Closing order of {position * close:C2} with profit : {message}");
                 }
-
             }
         }
         return updatedStock;
     }
 
-    private static decimal CalculateQuantity(decimal? close, AssetClass? assetClass, decimal? amount)
+    private static decimal CalculateQuantity(AssetClass? assetClass, decimal amount, decimal close)
     {
         var calculatedQty = 0M;
         if (assetClass == AssetClass.UsEquity)
         {
-            if (amount != null && close != null)
-                calculatedQty = (Int64)(amount / close);
+            calculatedQty = (Int64)(amount / close);
         }
         if (assetClass == AssetClass.Crypto)
         {
-            if (amount != null && close != null)
-                calculatedQty = (decimal)amount / (decimal)close;
+            calculatedQty = amount / close;
         }
 
-        return Math.Round(calculatedQty,3);
+        return Math.Round(calculatedQty,2);
     }
 }
