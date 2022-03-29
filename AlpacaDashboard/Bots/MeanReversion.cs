@@ -58,7 +58,7 @@ internal class MeanReversion : IBot
     public int AverageBars { get => _averageBars; set => _averageBars = value; }
 
     //Scale
-    private int _scale = 10;
+    private int _scale = 200;
     public int Scale { get => _scale; set => _scale = value; }
     #endregion
 
@@ -193,8 +193,8 @@ internal class MeanReversion : IBot
         var symbol = updatedStock?.Asset?.Symbol;
 
         //last trade open and its id
-        bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
-        Guid? lastTradeId = updatedStock?.OrdersWithItsOldOrderId.Values.LastOrDefault();
+        bool lastTradeOpen = updatedStock?.OpenOrders.Count > 0 ? true : false;
+        Guid? lastTradeId = updatedStock?.OpenOrders.LastOrDefault();
 
         //calculate average price
         var avg = closingPrices.Average();
@@ -245,7 +245,8 @@ internal class MeanReversion : IBot
             {
                 // Allocate a percent of portfolio to short position
                 var portfolioShare = -diff / close * scale;
-                var amountToShort = buyingPower * portfolioShare ?? 0M;
+                var targetPositionValue = -1 * equity * multiplier * portfolioShare;
+                var amountToShort = targetPositionValue - positionValue ?? 0M;
 
                 switch (amountToShort)
                 {
@@ -310,7 +311,8 @@ internal class MeanReversion : IBot
         else
         {
             var portfolioShare = diff / close * scale;
-            var amountToLong = buyingPower * portfolioShare ?? 0M;
+            var targetPositionValue = equity * multiplier * portfolioShare;
+            var amountToLong = targetPositionValue - positionValue ?? 0M;
 
             if (positionQuantity < 0)
             {
