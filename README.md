@@ -2,9 +2,9 @@
 ![Imgur](https://i.imgur.com/7k2MXsY.png)  
 
 This is Alpaca Dashboard which will allow you to manage your portfolio in Live and Paper Environment. It will list your open position, open orders, closed orders and watchlist of open positions, these list will show real time updates on the close price, position, market value, profit/loss, bid price and ask price for each assets.
-Account data like buying power will updated realtime. You will also have the ability to submit new order or close position etc.  
+Account data like buying power will updated real-time. You will also have the ability to submit new order or close position etc.  
 
-You can build your own Scanner and Bots classes easily by implementing its interfaces. each implemented scanner will be automaticlly displayed in UI along with its input parameters.
+You can build your own Scanner and Bots classes easily by implementing its interfaces. each implemented scanner will be automatically displayed in UI along with its input parameters.
 
 Portfolio screen showing open position for the selected environment.    
 ![Imgur](https://i.imgur.com/y3wP9d4.png)  
@@ -44,10 +44,10 @@ Bot classes should implement this interface
 
 Currently 3 scanners are implemented.  
 1. ScannerCrypto is a simple scanner which list the Crypto Asset.  
-2. ScannerAboveVolume make use of SnapShot to filter asset between the given Close price range and above the given Volume.  
-3. ScannerAboveSMA make use of SnapShot to filter asset between the given Close price range and above the given Volume and uses OoplesFinance.StockIndicator to select stock above simple moving average, this scanner also have a logic to run scanner every given intervals.  
+2. ScannerAboveVolume make use of Snapshot to filter asset between the given Close price range and above the given Volume.  
+3. ScannerAboveSMA make use of Snapshot to filter asset between the given Close price range and above the given Volume and uses OoplesFinance.StockIndicator to select stock above simple moving average, this scanner also have a logic to run scanner every given intervals.  
 
-These scanner symbols are stored in the Alpca Account as watchlist, so these scanner will get reloaded with last scanned list next time you start this dashboard.  
+These scanner symbols are stored in the Alpaca Account as watchlist, so these scanner will get reloaded with last scanned list next time you start this dashboard.  
 
 Currently 3 Bots are implemented.  
 1. MeanReversion:
