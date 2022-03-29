@@ -303,10 +303,9 @@ public class Broker : IDisposable
             IStock? stock = StockObjects.GetStock(order.Symbol);
             if (stock != null)
             {
-                Guid? oldId = null;
-                if (!stock.OrdersWithItsOldOrderId.TryGetValue(order.OrderId, out oldId))
+                if (!stock.OpenOrders.Exists(x => x== order.OrderId))
                 {
-                    stock.OrdersWithItsOldOrderId.Add(order.OrderId, orderId);
+                    stock.OpenOrders.Add(order.OrderId);
                 }
             }
             SendStatusMessage($"{Environment} : {message}");
@@ -630,10 +629,9 @@ public class Broker : IDisposable
 
             if (stock != null)
             {
-                Guid? oldId = null;
-                if (stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
                 {
-                    stock.OrdersWithItsOldOrderId.Remove(obj.Order.OrderId);
+                    stock.OpenOrders.Remove(obj.Order.OrderId);
                 }
             }
 
@@ -654,10 +652,9 @@ public class Broker : IDisposable
         {
             if (stock != null)
             {
-                Guid? oldId = null;
-                if(!stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                if (!stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
                 {
-                    stock.OrdersWithItsOldOrderId.Add(obj.Order.OrderId, null);
+                    stock.OpenOrders.Add(obj.Order.OrderId);
                 }
             }
 
@@ -668,10 +665,9 @@ public class Broker : IDisposable
         {
             if (stock != null)
             {
-                Guid? oldId = null;
-                if (stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
                 {
-                    stock.OrdersWithItsOldOrderId.Remove(obj.Order.OrderId);
+                    stock.OpenOrders.Remove(obj.Order.OrderId);
                 }
             }
             await UpdateOpenOrders().ConfigureAwait(false);
@@ -681,10 +677,9 @@ public class Broker : IDisposable
         {
             if (stock != null)
             {
-                Guid? oldId = null;
-                if (stock.OrdersWithItsOldOrderId.TryGetValue(obj.Order.OrderId, out oldId))
+                if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
                 {
-                    stock.OrdersWithItsOldOrderId.Remove(obj.Order.OrderId);
+                    stock.OpenOrders.Remove(obj.Order.OrderId);
                 }
             }
         }
@@ -879,10 +874,9 @@ public class Broker : IDisposable
             IStock? stock = StockObjects.GetStock(ord.Symbol);
             if (stock != null) 
             {
-                var ordkey = stock.OrdersWithItsOldOrderId.Keys.Where(x => x == ord.OrderId);
-                if (ordkey == null)
+                if (!stock.OpenOrders.Exists(x => x == ord.OrderId))
                 {
-                    stock.OrdersWithItsOldOrderId.Add(ord.OrderId, null);
+                    stock.OpenOrders.Add(ord.OrderId);
                 }
             }
         }

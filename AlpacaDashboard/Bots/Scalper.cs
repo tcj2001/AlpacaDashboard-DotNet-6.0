@@ -202,8 +202,8 @@ internal class Scalper : IBot
         var symbol = updatedStock?.Asset?.Symbol;
         
         //last trade open and its id
-        bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
-        Guid? lastTradeId = updatedStock?.OrdersWithItsOldOrderId.Keys.LastOrDefault();
+        bool lastTradeOpen = updatedStock?.OpenOrders.Count > 0 ? true : false;
+        Guid? lastTradeId = updatedStock?.OpenOrders.LastOrDefault();
 
         //current position
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
@@ -246,11 +246,11 @@ internal class Scalper : IBot
             {
                 if (calculatedQty > 0)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Market, TimeInForce.Day, false,
-                            asset, OrderQuantity.Fractional(calculatedQty), null, null,
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Day, false,
+                            asset, OrderQuantity.Fractional(calculatedQty), null, close,
                             null, null).ConfigureAwait(false);
 
-                    log.Information($"Adding market order of {calculatedQty} to long position : {message}");
+                    log.Information($"{message}");
                 }
             }
             else
@@ -269,7 +269,7 @@ internal class Scalper : IBot
                             asset, OrderQuantity.Fractional((decimal)position), null, close,
                             null, null).ConfigureAwait(false);
 
-                    log.Information($"Closing order of {position * close:C2} with profit : {message}");
+                    log.Information($"With profit : {message}");
                 }
             }
         }

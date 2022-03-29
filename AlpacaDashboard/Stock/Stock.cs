@@ -11,7 +11,7 @@ public class Stock : IStock
     public ITrade? Trade { get; set; } = default!;
     public IPosition? Position { get; set; } = default!;
     //hold the order id of the order that was replaced by this order
-    public Dictionary<Guid, Guid?> OrdersWithItsOldOrderId { get; set; } = new Dictionary<Guid, Guid?>();
+    public List<Guid> OpenOrders { get; set; } = new List<Guid>();
     public ITradeUpdate? TradeUpdate { get; set; } = default!;
     public IBar? MinuteBar { get; set; } = default!;
     public bool subscribed { get; set; } = default!;
