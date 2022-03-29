@@ -184,11 +184,13 @@ internal class MeanReversion : IBot
         if (updatedStock?.MinuteBar == null)
             return updatedStock;
 
+        //close price
+        var close = updatedStock?.Trade?.Price ?? 0M;
+        if (close == 0)
+            return updatedStock;
+
         //symbol
         var symbol = updatedStock?.Asset?.Symbol;
-
-        //close price
-        var close = updatedStock?.MinuteBar?.Close == null ? updatedStock?.Trade?.Price : updatedStock?.MinuteBar?.Close;
 
         //last trade open and its id
         bool lastTradeOpen = updatedStock?.OrdersWithItsOldOrderId.Count > 0 ? true : false;
@@ -221,8 +223,8 @@ internal class MeanReversion : IBot
         var multiplier = ((decimal?)account?.Multiplier);
 
         // Check how much we currently have in this position.
-        var positionQuantity = updatedStock?.Position?.Quantity == null ? 0M : updatedStock?.Position?.Quantity;
-        var positionValue = updatedStock?.Position?.MarketValue == null ? 0M : updatedStock?.Position?.MarketValue;
+        var positionQuantity = updatedStock?.Position?.Quantity ?? 0M;
+        var positionValue = updatedStock?.Position?.MarketValue ?? 0M;
 
         //price is above average
         if (diff <= 0)
@@ -242,9 +244,8 @@ internal class MeanReversion : IBot
             else
             {
                 // Allocate a percent of portfolio to short position
-                var portfolioShare = -1 * diff / close * scale;
-                var targetPositionValue = -1 * equity * multiplier * portfolioShare;
-                var amountToShort = targetPositionValue - positionValue;
+                var portfolioShare = -diff / close * scale;
+                var amountToShort = buyingPower * portfolioShare ?? 0M;
 
                 switch (amountToShort)
                 {
@@ -260,7 +261,7 @@ internal class MeanReversion : IBot
 
 
                             //calulate quantity
-                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToShort);
+                            decimal calculatedQty = CalculateQuantity(assetClass, amountToShort, close);
 
                             if (isAssetShortable == true)
                             {
@@ -284,15 +285,12 @@ internal class MeanReversion : IBot
                         {
 
                             //calulate quantity
-                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToShort);
+                            decimal calculatedQty = CalculateQuantity(assetClass, amountToShort, close);
 
                             // We want to shrink our existing short position.
-                            if (positionQuantity != null)
+                            if (calculatedQty > -1 * positionQuantity)
                             {
-                                if (calculatedQty > -1 * positionQuantity)
-                                {
-                                    calculatedQty = (decimal)(-1 * positionQuantity);
-                                }
+                                calculatedQty = (decimal)(-1 * positionQuantity);
                             }
 
                             if (symbol != null)
@@ -312,8 +310,7 @@ internal class MeanReversion : IBot
         else
         {
             var portfolioShare = diff / close * scale;
-            var targetPositionValue = equity * multiplier * portfolioShare;
-            var amountToLong = targetPositionValue - positionValue;
+            var amountToLong = buyingPower * portfolioShare ?? 0M;
 
             if (positionQuantity < 0)
             {
@@ -340,7 +337,7 @@ internal class MeanReversion : IBot
                             }
 
                             //calulate quantity
-                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToLong);
+                            decimal calculatedQty = CalculateQuantity(assetClass, amountToLong, close);
 
                             if (symbol != null)
                             {
@@ -359,7 +356,7 @@ internal class MeanReversion : IBot
                             amountToLong *= -1;
 
                             //calulate quantity
-                            decimal calculatedQty = CalculateQuantity(close, assetClass, amountToLong);
+                            decimal calculatedQty = CalculateQuantity(assetClass, amountToLong, close);
 
                             if (calculatedQty > positionQuantity)
                             {
@@ -389,20 +386,18 @@ internal class MeanReversion : IBot
         return updatedStock;
     }
 
-    private static decimal CalculateQuantity(decimal? close, AssetClass? assetClass, decimal? amount)
+    private static decimal CalculateQuantity(AssetClass? assetClass, decimal amount, decimal close)
     {
         var calculatedQty = 0M;
         if (assetClass == AssetClass.UsEquity)
         {
-            if (amount != null && close != null)
-                calculatedQty = (Int64)(amount / close);
+            calculatedQty = (Int64)(amount / close);
         }
         if (assetClass == AssetClass.Crypto)
         {
-            if (amount != null && close != null)
-                calculatedQty = (decimal)amount / (decimal)close;
+            calculatedQty = amount / close;
         }
 
-        return Math.Round(calculatedQty,3);
+        return Math.Round(calculatedQty, 2);
     }
 }
