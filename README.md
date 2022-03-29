@@ -1,4 +1,4 @@
-﻿# Alpaca Dashboard (.Net 6.0)
+﻿# Alpaca Dashboard (.Net 6.0 C#)
 ![Imgur](https://i.imgur.com/7k2MXsY.png)  
 
 This is Alpaca Dashboard which will allow you to manage your portfolio in Live and Paper Environment. It will list your open position, open orders, closed orders and watchlist of open positions, these list will show real time updates on the close price, position, market value, profit/loss, bid price and ask price for each assets.
