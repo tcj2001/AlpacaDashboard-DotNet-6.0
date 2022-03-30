@@ -221,7 +221,6 @@ public partial class AlpacaDashboard : Form
             listView.Columns.Add("Quantity", 100);
             listView.Columns.Add("Market Value", 100);
             listView.Columns.Add("Total Profit", 100);
-            listView.Columns.Add("Session Profit", 100);
             listView.MouseClick += BotList_MouseClick;
             TableLayoutPanel tableLayoutPanel = new()
             {
@@ -763,7 +762,6 @@ public partial class AlpacaDashboard : Form
                 item.SubItems.Add(pos.Quantity.ToString());
                 item.SubItems.Add(pos.MarketValue.ToString());
                 item.SubItems.Add(pos.UnrealizedProfitLoss.ToString());
-                item.SubItems.Add(stock?.sessionProfit.ToString());
                 listViewPositions.Invoke(new MethodInvoker(delegate () { listViewPositions.Items.Add(item); }));
             }
             catch { }
@@ -795,8 +793,6 @@ public partial class AlpacaDashboard : Form
                         {
                             if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
                         }
-
-                        if (item.SubItems[5].Text != stock.sessionProfit.ToString()) item.SubItems[5].Text = stock.sessionProfit.ToString();
 
                         try
                         {
@@ -2167,14 +2163,12 @@ public partial class AlpacaDashboard : Form
                             item.SubItems.Add(assetPosition.Value.Quantity.ToString());
                             item.SubItems.Add(assetPosition.Value.MarketValue.ToString());
                             item.SubItems.Add(assetPosition.Value.UnrealizedProfitLoss.ToString());
-                            item.SubItems.Add("0.00");
                             lv.Invoke(new MethodInvoker(delegate () { lv.Items.Add(item); }));
                         }
                         else
                         {
                             item.SubItems.Add("0.00");
                             item.SubItems.Add("0");
-                            item.SubItems.Add("0.00");
                             item.SubItems.Add("0.00");
                             item.SubItems.Add("0.00");
                             lv.Invoke(new MethodInvoker(delegate () { lv.Items.Add(item); }));

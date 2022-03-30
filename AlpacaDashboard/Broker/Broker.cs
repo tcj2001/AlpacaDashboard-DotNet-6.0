@@ -722,7 +722,6 @@ public class Broker : IDisposable
 
             if (stock != null)
             {
-                stock.sessionProfit += obj.Order.OrderSide == OrderSide.Buy ? -cost : cost;
                 if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
                 {
                     stock.OpenOrders.Remove(obj.Order.OrderId);

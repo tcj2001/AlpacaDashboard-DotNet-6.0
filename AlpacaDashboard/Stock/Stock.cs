@@ -15,8 +15,6 @@ public class Stock : IStock
     public ITradeUpdate? TradeUpdate { get; set; } = default!;
     public IBar? MinuteBar { get; set; } = default!;
     public bool subscribed { get; set; } = default!;
-    public decimal sessionProfit { get; set; } = default!;
-
 
     /// <summary>
     /// instantiate stock object
