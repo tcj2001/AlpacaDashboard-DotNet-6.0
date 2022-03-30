@@ -234,8 +234,8 @@ internal class MeanReversion : IBot
                 //close existing long position
                 if (symbol != null)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                    asset, OrderQuantity.Fractional((decimal)positionQuantity), null, close,
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
+                    asset, OrderQuantity.Fractional((decimal)positionQuantity), close, null, null, null,
                     null, null).ConfigureAwait(false);
 
                     log.Information($"Closing exiting long {positionQuantity} position : {message}");
@@ -268,8 +268,8 @@ internal class MeanReversion : IBot
                             {
                                 if (updatedStock?.Asset?.Symbol != null)
                                 {
-                                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                                    asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
+                                    asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
                                     null, null).ConfigureAwait(false);
 
                                     log.Information($"Adding {calculatedQty * close:C2} to short position : {message}");
@@ -296,8 +296,8 @@ internal class MeanReversion : IBot
 
                             if (symbol != null)
                             {
-                                (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                                (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                                asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
                                 null, null).ConfigureAwait(false);
 
                                 log.Information($"Removing {calculatedQty * close:C2} from short position : {message}");
@@ -319,8 +319,8 @@ internal class MeanReversion : IBot
                 //close exising short position
                 if (symbol != null)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                    asset, OrderQuantity.Fractional(-1 * (decimal)positionQuantity), null, close,
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                    asset, OrderQuantity.Fractional(-1 * (decimal)positionQuantity), close, null, null, null,
                     null, null).ConfigureAwait(false);
 
                     log.Information($"Removing {positionValue:C2} short position : {message}");
@@ -343,8 +343,8 @@ internal class MeanReversion : IBot
 
                             if (symbol != null)
                             {
-                                (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
-                                asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                                (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                                asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
                                 null, null).ConfigureAwait(false);
 
                                 log.Information($"Adding {calculatedQty * close:C2} to long position : {message}");
@@ -369,8 +369,8 @@ internal class MeanReversion : IBot
                             {
                                 if (updatedStock?.Asset?.Symbol != null)
                                 {
-                                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
-                                    asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, OrderType.Limit, TimeInForce.Gtc, false,
+                                    asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
                                     null, null).ConfigureAwait(false);
 
                                     log.Information($"Removing {calculatedQty * close:C2} from long position : {message}");

@@ -12,4 +12,5 @@ public interface IStock
     IBar? MinuteBar { get; set; }
     bool subscribed { get; set; }
     object Tag { get; set; }
+    decimal sessionProfit { get; set; }
 }

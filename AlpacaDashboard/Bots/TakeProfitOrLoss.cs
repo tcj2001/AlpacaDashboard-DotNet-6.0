@@ -255,7 +255,7 @@ internal class TakeProfitOrLoss : IBot
             {
                 if (calculatedQty > 0 && position == 0)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitBracketOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                    (IOrder? order, string? message) = await Broker.SubmitBracketOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
                     asset, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
 
                     log.Information($"{message}");
@@ -265,7 +265,7 @@ internal class TakeProfitOrLoss : IBot
             {
                 if (lastTradeId != null && position == 0)
                 {
-                    (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
+                    (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder(GetType().ToString(), (Guid)lastTradeId, close, null);
                     lastTradeId = order?.OrderId;
                     log.Information($"{message}");
                 }

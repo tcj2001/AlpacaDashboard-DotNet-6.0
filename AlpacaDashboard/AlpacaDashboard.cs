@@ -1,3 +1,4 @@
+using System.Configuration;
 using System.Reflection;
 
 namespace AlpacaDashboard;
@@ -14,6 +15,7 @@ public partial class AlpacaDashboard : Form
     private readonly IOptions<MySettings> _mySettings;
     private readonly IOptions<LiveKey> _liveKey;
     private readonly IOptions<PaperKey> _paperKey;
+    private readonly IOptions<ConnectionStringSettings> _connections;
     private Broker PaperBroker { get; set; } = default!;
     private Broker LiveBroker { get; set; } = default!;
 
@@ -30,12 +32,14 @@ public partial class AlpacaDashboard : Form
     /// <param name="mySettings"></param>
     /// <param name="liveKey"></param>
     /// <param name="paperKey"></param>
-    public AlpacaDashboard(ILogger<AlpacaDashboard> logger, IOptions<MySettings> mySettings, IOptions<LiveKey> liveKey, IOptions<PaperKey> paperKey)
+    public AlpacaDashboard(ILogger<AlpacaDashboard> logger, IOptions<MySettings> mySettings, IOptions<LiveKey> liveKey, IOptions<PaperKey> paperKey, IOptions<ConnectionStringSettings> connections)
     {
         _logger = logger;
         _mySettings = mySettings;
         _liveKey = liveKey;
         _paperKey = paperKey;
+        _connections = connections;
+
         token = new CancellationToken();
 
         InitializeComponent();
@@ -56,6 +60,7 @@ public partial class AlpacaDashboard : Form
         this.listViewPositions.Columns.Add("Quantity", 100);
         this.listViewPositions.Columns.Add("Market Value", 100);
         this.listViewPositions.Columns.Add("Total Profit", 100);
+        this.listViewPositions.Columns.Add("Session Profit", 100);
 
         this.listViewClosedOrders.Columns.Add("Asset", 100);
         this.listViewClosedOrders.Columns.Add("Order", 100);
@@ -94,13 +99,13 @@ public partial class AlpacaDashboard : Form
         _logger.LogInformation("AlpacaDashboard {0} at {1}", "Started", tn);
 
         //live
-        LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, token);
+        LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, _connections, token);
         LivePfolioEnableEvents();
         await LiveBroker.Connect();
         await LiveBroker.PositionAndOpenOrderAssets();
 
         //paper
-        PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, token);
+        PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, _connections, token);
         PaperPfolioEnableEvents();
         await PaperBroker.Connect();
         await PaperBroker.PositionAndOpenOrderAssets();
@@ -216,6 +221,7 @@ public partial class AlpacaDashboard : Form
             listView.Columns.Add("Quantity", 100);
             listView.Columns.Add("Market Value", 100);
             listView.Columns.Add("Total Profit", 100);
+            listView.Columns.Add("Session Profit", 100);
             listView.MouseClick += BotList_MouseClick;
             TableLayoutPanel tableLayoutPanel = new()
             {
@@ -757,6 +763,7 @@ public partial class AlpacaDashboard : Form
                 item.SubItems.Add(pos.Quantity.ToString());
                 item.SubItems.Add(pos.MarketValue.ToString());
                 item.SubItems.Add(pos.UnrealizedProfitLoss.ToString());
+                item.SubItems.Add(stock?.sessionProfit.ToString());
                 listViewPositions.Invoke(new MethodInvoker(delegate () { listViewPositions.Items.Add(item); }));
             }
             catch { }
@@ -788,6 +795,8 @@ public partial class AlpacaDashboard : Form
                         {
                             if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
                         }
+
+                        if (item.SubItems[5].Text != stock.sessionProfit.ToString()) item.SubItems[5].Text = stock.sessionProfit.ToString();
 
                         try
                         {
@@ -1788,7 +1797,8 @@ public partial class AlpacaDashboard : Form
         decimal qty = Convert.ToDecimal(textBoxQuantity.Text);
         decimal amt = Convert.ToDecimal(textBoxAmount.Text);
         decimal limitPrice = Convert.ToDecimal(textBoxLimitPrice.Text);
-        decimal stopPrice = Convert.ToDecimal(textBoxStopPrice.Text);
+        decimal stopLossPrice = Convert.ToDecimal(textBoxStopPrice.Text);
+        decimal stopLosslimitPrice = Convert.ToDecimal(textBoxLimitPrice.Text);  // limitprice is used for stoplosslimit also here
         decimal trialingRateOrPrice = Convert.ToDecimal(textBoxTrailRateOrPrice.Text);
 
         //buy or sell
@@ -1851,8 +1861,8 @@ public partial class AlpacaDashboard : Form
         if (Environment == TradingEnvironment.Live)
         {
             var asset = await LiveBroker.GetAsset(textBoxSymbol.Text);
-            (IOrder? order, string? message) = await LiveBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, asset, orderQuantity, stopPrice,
-                limitPrice, trialOffsetPercentage, trailOffsetDollar);
+            (IOrder? order, string? message) = await LiveBroker.SubmitOrder("Dashborad", orderSide, orderType, timeInForce, extendedHours, asset, orderQuantity,
+                limitPrice, null, stopLossPrice, stopLosslimitPrice,  trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await LiveBroker.UpdateOpenOrders().ConfigureAwait(false);
             //display message
@@ -1861,8 +1871,8 @@ public partial class AlpacaDashboard : Form
         if (Environment == TradingEnvironment.Paper)
         {
             var asset = await LiveBroker.GetAsset(textBoxSymbol.Text);
-            (IOrder? order, string? message) = await PaperBroker.SubmitOrder(orderSide, orderType, timeInForce, extendedHours, asset, orderQuantity, stopPrice,
-                limitPrice, trialOffsetPercentage, trailOffsetDollar);
+            (IOrder? order, string? message) = await PaperBroker.SubmitOrder("Dashborad", orderSide, orderType, timeInForce, extendedHours, asset, orderQuantity, 
+                limitPrice, null, stopLossPrice, stopLosslimitPrice, trialOffsetPercentage, trailOffsetDollar);
             //since no onTrade event generated for Accepted status
             if (order != null && order.OrderStatus == OrderStatus.Accepted) await PaperBroker.UpdateOpenOrders().ConfigureAwait(false); ;
             //display message
@@ -2157,12 +2167,14 @@ public partial class AlpacaDashboard : Form
                             item.SubItems.Add(assetPosition.Value.Quantity.ToString());
                             item.SubItems.Add(assetPosition.Value.MarketValue.ToString());
                             item.SubItems.Add(assetPosition.Value.UnrealizedProfitLoss.ToString());
+                            item.SubItems.Add("0.00");
                             lv.Invoke(new MethodInvoker(delegate () { lv.Items.Add(item); }));
                         }
                         else
                         {
                             item.SubItems.Add("0.00");
                             item.SubItems.Add("0");
+                            item.SubItems.Add("0.00");
                             item.SubItems.Add("0.00");
                             item.SubItems.Add("0.00");
                             lv.Invoke(new MethodInvoker(delegate () { lv.Items.Add(item); }));

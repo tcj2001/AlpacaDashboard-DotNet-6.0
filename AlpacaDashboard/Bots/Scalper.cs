@@ -246,8 +246,8 @@ internal class Scalper : IBot
             {
                 if (calculatedQty > 0)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Buy, OrderType.Limit, TimeInForce.Day, false,
-                            asset, OrderQuantity.Fractional(calculatedQty), null, close,
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Day, false,
+                            asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
                             null, null).ConfigureAwait(false);
 
                     log.Information($"{message}");
@@ -259,14 +259,14 @@ internal class Scalper : IBot
                 {
                     if (lastTradeId != null)
                     {
-                        (IOrder? order, string? message) = await Broker.ReplaceOpenOrder((Guid)lastTradeId, close, null);
+                        (IOrder? order, string? message) = await Broker.ReplaceOpenOrder(GetType().ToString(), (Guid)lastTradeId, close, null);
                         log.Information($"{message} with {order?.OrderId}");
                     }
                 }
                 else if (currentProfit > ProfitAmount && position > 0 && !lastTradeOpen)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(OrderSide.Sell, OrderType.Limit, TimeInForce.Day, false,
-                            asset, OrderQuantity.Fractional((decimal)position), null, close,
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, OrderType.Limit, TimeInForce.Day, false,
+                            asset, OrderQuantity.Fractional((decimal)position), close, null, null, null,
                             null, null).ConfigureAwait(false);
 
                     log.Information($"With profit : {message}");
