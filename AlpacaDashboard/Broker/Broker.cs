@@ -4,7 +4,9 @@ global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using AlpacaEnvironment = Alpaca.Markets.Environments;
 global using AlpacaDashboard.Enums;
+global using System.Data.SQLite;
 global using static AlpacaDashboard.Helpers.DateHelper;
+using System.Configuration;
 
 namespace AlpacaDashboard.Brokers;
 
@@ -28,6 +30,7 @@ public class Broker : IDisposable
 
     private readonly ILogger _logger;
     private readonly IOptions<MySettings> _mySetting;
+    private readonly IOptions<ConnectionStringSettings> _connections;
 
     private TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
@@ -46,6 +49,9 @@ public class Broker : IDisposable
     // hold the list of symbols and its data
     public StockList StockObjects = new();
 
+    private SQLiteConnection Conn { get; set; }
+
+
     #endregion
 
     #region constructor
@@ -58,16 +64,20 @@ public class Broker : IDisposable
     /// <param name="live"></param>
     /// <param name="mySetting"></param>
     /// <param name="logger"></param>
-    public Broker(string key, string secret, TradingEnvironment environment, IOptions<MySettings> mySetting, ILogger logger, CancellationToken token)
+    public Broker(string key, string secret, TradingEnvironment environment, IOptions<MySettings> mySetting, ILogger logger, IOptions<ConnectionStringSettings> connections, CancellationToken token)
     {
         this.token = token;
         _logger = logger;
         _mySetting = mySetting;
+        _connections = connections;
 
         //alpaca client
         this.key = key;
         this.secret = secret;
         Environment = environment;
+
+        Conn = new SQLiteConnection(_connections.Value.ConnectionString);
+        Conn.Open();
 
         subscribed = _mySetting.Value.Subscribed;
 
@@ -284,43 +294,6 @@ public class Broker : IDisposable
     }
 
     /// <summary>
-    /// Replace orders limit or stop price
-    /// </summary>
-    /// <param name="orderId"></param>
-    /// <param name="limitPrice"></param>
-    /// <param name="stopPrice"></param>
-    /// <returns></returns>
-    public async Task<(IOrder?, string?)> ReplaceOpenOrder(Guid orderId,decimal? limitPrice, decimal? stopPrice)
-    {
-        IOrder? order = null;
-        string? message = null;
-        try
-        {
-            var stpm = stopPrice != null ? $"and stopprice {stopPrice.ToString()}" : "";
-            message = $"Replacing {orderId.ToString()} with limit price {limitPrice.ToString()} {stpm} {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}";
-            ChangeOrderRequest changeOrderRequest = new ChangeOrderRequest(orderId) { LimitPrice = limitPrice, StopPrice = stopPrice };
-            order = await AlpacaTradingClient.PatchOrderAsync(changeOrderRequest, token).ConfigureAwait(false);
-            IStock? stock = StockObjects.GetStock(order.Symbol);
-            if (stock != null)
-            {
-                if (!stock.OpenOrders.Exists(x => x== order.OrderId))
-                {
-                    stock.OpenOrders.Add(order.OrderId);
-                }
-            }
-            SendStatusMessage($"{Environment} : {message}");
-            return (order, message);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
-            SendStatusMessage($"{Environment} : { message + ":" + message}");
-            return (null, message + ":" + ex.Message);
-        }
-    }
-
-
-    /// <summary>
     /// Liquidate symbol
     /// </summary>
     /// <param name="symbol"></param>
@@ -358,17 +331,21 @@ public class Broker : IDisposable
     }
 
     /// <summary>
-    /// Submit Order of any type
+    /// Submit order of any type
     /// </summary>
-    /// <param name="symbol"></param>
-    /// <param name="orderQuantity"></param>
-    /// <param name="limitPrice"></param>
     /// <param name="orderSide"></param>
     /// <param name="orderType"></param>
-    /// <param name="timeInForce"></param>
+    /// <param name="timeinForce"></param>
+    /// <param name="extendedHours"></param>
+    /// <param name="asset"></param>
+    /// <param name="orderQuantity"></param>
+    /// <param name="stopPrice"></param>
+    /// <param name="limitPrice"></param>
+    /// <param name="trailOffsetPercentage"></param>
+    /// <param name="trailOffsetDollars"></param>
     /// <returns></returns>
-    public async Task<(IOrder?, string?)> SubmitOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, IAsset? asset, OrderQuantity orderQuantity, decimal? stopPrice,
-        decimal? limitPrice, int? trailOffsetPercentage, decimal? trailOffsetDollars)
+    public async Task<(IOrder?, string?)> SubmitOrder(string name, OrderSide orderSide, OrderType orderType, TimeInForce timeinForce, bool extendedHours, IAsset? asset, OrderQuantity orderQuantity, 
+        decimal? limitPrice, decimal? takeProfitLimitPrice, decimal? stopLossStopPrice, decimal? stopLossLimitPrice, int? trailOffsetPercentage, decimal? trailOffsetDollars)
     {
         IOrder? order = null;
         string? message = null;
@@ -382,43 +359,61 @@ public class Broker : IDisposable
             switch (orderType)
             {
                 case OrderType.Market:
-                    message = $"Placing Market {orderSide.ToString()} of {orderQuantity.Value.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()}, Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours }).ConfigureAwait(false);
+                    message = $"Placing Market {orderSide.ToString()} of {orderQuantity.Value.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.Limit:
-                    message = $"Placing Limit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()}, Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, LimitPrice = limitPrice }).ConfigureAwait(false);
+                    message = $"Placing Limit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, LimitPrice = limitPrice }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.Stop:
-                    message = $"Placing Stop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()}, Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice }).ConfigureAwait(false);
+                    message = $"Placing Stop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopLossStopPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, StopPrice = stopLossStopPrice }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.StopLimit:
-                    message = $"Placing StopLimit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price {stopPrice.ToString()} and limit price {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()}, Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, LimitPrice = limitPrice }).ConfigureAwait(false);
+                    message = $"Placing StopLimit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price {stopLossStopPrice.ToString()} and limit price {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, StopPrice = stopLossStopPrice, LimitPrice = stopLossLimitPrice }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.TrailingStop:
-                    message = $"Placing TrailingStop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopPrice.ToString()} and trailing {trailOffsetDollars.ToString()} {trailOffsetPercentage.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()}, Extended Hours {extendedHours.ToString()}";
-                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce) { ExtendedHours = extendedHours, StopPrice = stopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
+                    message = $"Placing TrailingStop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopLossStopPrice.ToString()} and trailing {trailOffsetDollars.ToString()} {trailOffsetPercentage.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, StopPrice = stopLossStopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
             }
+
+            //write info to database
+            InsertMethod(name, order?.OrderClass.ToString(), orderType, timeinForce, extendedHours, orderQuantity.Value, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, trailOffsetPercentage, trailOffsetDollars, order);
+
             SendStatusMessage($"{Environment} : {message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
-            SendStatusMessage($"{Environment} : { message + ":" + message}");
+            SendStatusMessage($"{Environment} : { message + ":" + ex.Message}");
             return (null, message + ":" + ex.Message);
         }
     }
-
-    public async Task<(IOrder?, string?)> SubmitBracketOrder(OrderSide orderSide, OrderType orderType, TimeInForce timeInForce, bool extendedHours, IAsset? asset, OrderQuantity orderQuantity, 
+    
+    /// <summary>
+    /// Submit a bracket order
+    /// </summary>
+    /// <param name="orderSide"></param>
+    /// <param name="orderType"></param>
+    /// <param name="timeinForce"></param>
+    /// <param name="extendedHours"></param>
+    /// <param name="asset"></param>
+    /// <param name="orderQuantity"></param>
+    /// <param name="limitPrice"></param>
+    /// <param name="takeProfitLimitPrice"></param>
+    /// <param name="stopLossStopPrice"></param>
+    /// <param name="stopLossLimitPrice"></param>
+    /// <returns></returns>
+    public async Task<(IOrder?, string?)> SubmitBracketOrder(string name, OrderSide orderSide, OrderType orderType, TimeInForce timeinForce, bool extendedHours, IAsset? asset, OrderQuantity orderQuantity, 
         decimal? limitPrice, decimal takeProfitLimitPrice, decimal stopLossStopPrice, decimal stopLossLimitPrice)
     {
         IOrder? order = null;
@@ -433,14 +428,14 @@ public class Broker : IDisposable
 
         try
         {
-            message = $"Placing Bracket {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} with take profit @ {takeProfitLimitPrice.ToString()} and take loss @ {stopLossLimitPrice.ToString() } on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeInForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+            message = $"Placing Bracket {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} with take profit @ {takeProfitLimitPrice.ToString()} and take loss @ {stopLossLimitPrice.ToString() } on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
             switch (orderType)
             {
                 case OrderType.Market:
                     if (orderSide == OrderSide.Buy)
                     {
                         order = await AlpacaTradingClient.PostOrderAsync(MarketOrder.Buy(symbol, qty)
-                            .WithDuration(timeInForce)
+                            .WithDuration(timeinForce)
                             .WithExtendedHours(extendedHours)
                             .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
                             );
@@ -449,7 +444,7 @@ public class Broker : IDisposable
                     else
                     {
                         order = await AlpacaTradingClient.PostOrderAsync(MarketOrder.Sell(symbol, qty)
-                            .WithDuration(timeInForce)
+                            .WithDuration(timeinForce)
                             .WithExtendedHours(extendedHours)
                             .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
                             );
@@ -462,7 +457,7 @@ public class Broker : IDisposable
                     {
                         if (limitPrice != null)
                             order = await AlpacaTradingClient.PostOrderAsync(LimitOrder.Buy(symbol, qty, (decimal)limitPrice)
-                            .WithDuration(timeInForce)
+                            .WithDuration(timeinForce)
                             .WithExtendedHours(extendedHours)
                             .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
                             );
@@ -472,7 +467,7 @@ public class Broker : IDisposable
                     {
                         if (limitPrice != null)
                             order = await AlpacaTradingClient.PostOrderAsync(LimitOrder.Sell(symbol, qty, (decimal)limitPrice)
-                            .WithDuration(timeInForce)
+                            .WithDuration(timeinForce)
                             .WithExtendedHours(extendedHours)
                             .Bracket(takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice)
                             );
@@ -483,23 +478,115 @@ public class Broker : IDisposable
                     break;
             }
 
-            //order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeInForce)
-            //{
-            //    ExtendedHours = extendedHours,
-            //    LimitPrice = limitPrice,
-            //    TakeProfitLimitPrice = takeProfitLimitPrice,
-            //    StopLossLimitPrice = stopLossLimitPrice,
-            //    StopLossStopPrice = stopLossStopPrice
-            //})
-            //.ConfigureAwait(false);
+            //write info to database
+            InsertMethod(name, order?.OrderClass.ToString(), orderType, timeinForce, extendedHours, orderQuantity.Value, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, 0, 0M, order);
+
             SendStatusMessage($"{Environment} : {message}");
             return (order, message);
         }
         catch (Exception ex)
         {
             _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
-            SendStatusMessage($"{Environment} : { message + ":" + message}");
+            SendStatusMessage($"{Environment} : { message + ":" + ex.Message}");
             return (null, message + ":" + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Replace orders limit or stop price
+    /// </summary>
+    /// <param name="orderId"></param>
+    /// <param name="limitPrice"></param>
+    /// <param name="stopPrice"></param>
+    /// <returns></returns>
+    public async Task<(IOrder?, string?)> ReplaceOpenOrder(string name, Guid orderId, decimal? limitPrice, decimal? stopPrice)
+    {
+        IOrder? order = null;
+        string? message = null;
+        try
+        {
+            var stpm = stopPrice != null ? $"and stopprice {stopPrice.ToString()}" : "";
+            message = $"Replacing {orderId.ToString()} with limit price {limitPrice.ToString()} {stpm} {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}";
+            ChangeOrderRequest changeOrderRequest = new ChangeOrderRequest(orderId) { LimitPrice = limitPrice, StopPrice = stopPrice };
+            order = await AlpacaTradingClient.PatchOrderAsync(changeOrderRequest, token).ConfigureAwait(false);
+            IStock? stock = StockObjects.GetStock(order.Symbol);
+            if (stock != null)
+            {
+                if (!stock.OpenOrders.Exists(x => x == order.OrderId))
+                {
+                    stock.OpenOrders.Add(order.OrderId);
+                }
+            }
+
+            //write info to database
+            SQLiteCommand deleteSQL = new SQLiteCommand($"Delete from {Environment.ToString()}Trades where orderId = ?", Conn);
+            deleteSQL.Parameters.Add(new SQLiteParameter("orderId", order?.ReplacesOrderId.ToString()));  //currently ReplacesOrderId not populated
+            try
+            {
+                deleteSQL.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation($"{Environment}  {ex.Message}");
+                SendStatusMessage($"{Environment} : {ex.Message}");
+            }
+
+            //write info to database
+            InsertMethod(name, "Replaced", order?.OrderType, order?.TimeInForce, true, order?.Quantity, limitPrice,0M, 0M, 0M, 0, 0M, order);
+
+            SendStatusMessage($"{Environment} : {message}");
+            return (order, message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation($"{Environment}  {message + ":" + ex.Message}");
+            SendStatusMessage($"{Environment} : { message + ":" + ex.Message}");
+            return (null, message + ":" + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Trade Insert record method for database
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="orderType"></param>
+    /// <param name="timeinForce"></param>
+    /// <param name="extendedHours"></param>
+    /// <param name="orderQuantity"></param>
+    /// <param name="limitPrice"></param>
+    /// <param name="takeProfitLimitPrice"></param>
+    /// <param name="stopLossStopPrice"></param>
+    /// <param name="stopLossLimitPrice"></param>
+    /// <param name="trailOffsetPercentage"></param>
+    /// <param name="trailOffsetDollars"></param>
+    /// <param name="order"></param>
+    private void InsertMethod(string name, string? orderClass, OrderType? orderType, TimeInForce? timeinForce, bool extendedHours, decimal? orderQuantity, decimal? limitPrice, decimal? takeProfitLimitPrice, decimal? stopLossStopPrice, decimal? stopLossLimitPrice, int? trailOffsetPercentage, decimal? trailOffsetDollars, IOrder? order)
+    {
+        SQLiteCommand insertSQL = new SQLiteCommand($"Insert into {Environment.ToString()}Trades (date, name, orderId, orderSide, orderType, orderClass, timeinForce, extendedHours, symbol, assetClass, orderQuantity, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, trailOffsetPercentage, trailOffsetDollars) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", Conn);
+        insertSQL.Parameters.Add(new SQLiteParameter("date", TimeZoneInfo.ConvertTimeFromUtc(order?.CreatedAtUtc ?? DateTime.UtcNow, easternZone).ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("name", name));
+        insertSQL.Parameters.Add(new SQLiteParameter("orderId", order?.OrderId.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("orderSide", order?.OrderSide.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("orderType", orderType.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("orderClass", orderClass?.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("timeinForce", timeinForce.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("extendedHours", extendedHours.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("symbol", order?.Symbol));
+        insertSQL.Parameters.Add(new SQLiteParameter("assetClass", order?.AssetClass.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("orderQuantity", orderQuantity));
+        insertSQL.Parameters.Add(new SQLiteParameter("limitPrice", limitPrice));
+        insertSQL.Parameters.Add(new SQLiteParameter("takeProfitLimitPrice", takeProfitLimitPrice));
+        insertSQL.Parameters.Add(new SQLiteParameter("stopLossStopPrice", stopLossStopPrice));
+        insertSQL.Parameters.Add(new SQLiteParameter("stopLossLimitPrice", stopLossLimitPrice));
+        insertSQL.Parameters.Add(new SQLiteParameter("trailOffsetPercentage", trailOffsetPercentage));
+        insertSQL.Parameters.Add(new SQLiteParameter("trailOffsetDollars", trailOffsetDollars)); try
+        {
+            insertSQL.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation($"{Environment}  {ex.Message}");
+            SendStatusMessage($"{Environment} : {ex.Message}");
         }
     }
 
@@ -627,12 +714,33 @@ public class Broker : IDisposable
             SendStatusMessage($"{Environment} : {message}");
             _logger.LogInformation(message);
 
+            var cost = 0M;
+            if(obj.Order.OrderSide == OrderSide.Buy)
+                cost = -1 * obj.Order.FilledQuantity * obj.Order.AverageFillPrice ?? 0M;
+            else
+                cost = obj.Order.FilledQuantity * obj.Order.AverageFillPrice ?? 0M;
+
             if (stock != null)
             {
+                stock.sessionProfit += obj.Order.OrderSide == OrderSide.Buy ? -cost : cost;
                 if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
                 {
                     stock.OpenOrders.Remove(obj.Order.OrderId);
                 }
+            }
+
+            //write info to database
+            SQLiteCommand updateSQL = new SQLiteCommand($"Update {Environment.ToString()}Trades Set Value = ? Where orderId = ?", Conn);
+            updateSQL.Parameters.Add(new SQLiteParameter("value", cost));
+            updateSQL.Parameters.Add(new SQLiteParameter("orderId", obj.Order.OrderId.ToString()));
+            try
+            {
+                updateSQL.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation($"{Environment}  {ex.Message}");
+                SendStatusMessage($"{Environment} : {ex.Message}");
             }
 
             await UpdateEnviromentData().ConfigureAwait(false);
@@ -1040,49 +1148,52 @@ public class Broker : IDisposable
     public async Task Subscribe(IAsset asset, string type)
     {
 
-        var stock = new Stock(asset, type);
-
-        //add to the list
-        StockObjects.Add(stock);
-
-        IAlpacaDataSubscription<ITrade>? tradeSubscription = null;
-        IAlpacaDataSubscription<IBar>? barSubscription = null;
-        IAlpacaDataSubscription<IQuote>? quoteSubscription = null;
-
-        if (asset != null)
+        IStock? stock = StockObjects.GetStock(asset.Symbol);
+        if (stock == null)
         {
-            if (subscribed == true)
+            var stockx = new Stock(asset, type);
+            StockObjects.Add(stockx);
+
+
+            IAlpacaDataSubscription<ITrade>? tradeSubscription = null;
+            IAlpacaDataSubscription<IBar>? barSubscription = null;
+            IAlpacaDataSubscription<IQuote>? quoteSubscription = null;
+
+            if (asset != null)
             {
-                if (asset.Class == AssetClass.Crypto)
+                if (subscribed == true)
                 {
-                    tradeSubscription = AlpacaCryptoStreamingClient.GetTradeSubscription(asset.Symbol);
-                    tradeSubscription.Received += CryptoTradeSubscription_Received;
-                    await AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
+                    if (asset.Class == AssetClass.Crypto)
+                    {
+                        tradeSubscription = AlpacaCryptoStreamingClient.GetTradeSubscription(asset.Symbol);
+                        tradeSubscription.Received += CryptoTradeSubscription_Received;
+                        await AlpacaCryptoStreamingClient.SubscribeAsync(tradeSubscription);
 
-                    quoteSubscription = AlpacaCryptoStreamingClient.GetQuoteSubscription(asset.Symbol);
-                    quoteSubscription.Received += CryptoQuoteSubscription_Received;
-                    await AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
+                        quoteSubscription = AlpacaCryptoStreamingClient.GetQuoteSubscription(asset.Symbol);
+                        quoteSubscription.Received += CryptoQuoteSubscription_Received;
+                        await AlpacaCryptoStreamingClient.SubscribeAsync(quoteSubscription);
 
-                    barSubscription = AlpacaCryptoStreamingClient.GetMinuteBarSubscription(asset.Symbol);
-                    barSubscription.Received += CryptoMinAggrSubscription_Received;
-                    await AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
+                        barSubscription = AlpacaCryptoStreamingClient.GetMinuteBarSubscription(asset.Symbol);
+                        barSubscription.Received += CryptoMinAggrSubscription_Received;
+                        await AlpacaCryptoStreamingClient.SubscribeAsync(barSubscription);
+                    }
+
+                    if (asset.Class == AssetClass.UsEquity)
+                    {
+                        tradeSubscription = AlpacaDataStreamingClient.GetTradeSubscription(asset.Symbol);
+                        tradeSubscription.Received += UsEquityTradeSubscription_Received;
+                        await AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription);
+
+                        quoteSubscription = AlpacaDataStreamingClient.GetQuoteSubscription(asset.Symbol);
+                        quoteSubscription.Received += UsEquityQuoteSubscription_Received;
+                        await AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription);
+
+                        barSubscription = AlpacaDataStreamingClient.GetMinuteBarSubscription(asset.Symbol);
+                        barSubscription.Received += UsEquityMinAggrSubscription_Received;
+                        await AlpacaDataStreamingClient.SubscribeAsync(barSubscription);
+                    }
+                    stockx.subscribed = true;
                 }
-
-                if (asset.Class == AssetClass.UsEquity)
-                {
-                    tradeSubscription = AlpacaDataStreamingClient.GetTradeSubscription(asset.Symbol);
-                    tradeSubscription.Received += UsEquityTradeSubscription_Received;
-                    await AlpacaDataStreamingClient.SubscribeAsync(tradeSubscription);
-
-                    quoteSubscription = AlpacaDataStreamingClient.GetQuoteSubscription(asset.Symbol);
-                    quoteSubscription.Received += UsEquityQuoteSubscription_Received;
-                    await AlpacaDataStreamingClient.SubscribeAsync(quoteSubscription);
-
-                    barSubscription = AlpacaDataStreamingClient.GetMinuteBarSubscription(asset.Symbol);
-                    barSubscription.Received += UsEquityMinAggrSubscription_Received;
-                    await AlpacaDataStreamingClient.SubscribeAsync(barSubscription);
-                }
-                subscribed = true;
             }
         }
     }
@@ -1098,12 +1209,16 @@ public class Broker : IDisposable
     {
         foreach (var asset in assets)
         {
-            //create a new stock object
-            var stock = new Stock(asset, type);
-            //add to the list
-            StockObjects.Add(stock);
-            //set as subscribed    
-            stock.subscribed = true;
+            IStock? stock = StockObjects.GetStock(asset.Symbol);
+            if (stock == null)
+            {
+                //create a new stock object
+                var stockx = new Stock(asset, type);
+                //add to the list
+                StockObjects.Add(stockx);
+                //set as subscribed    
+                stockx.subscribed = true;
+            }
         }
 
         IAlpacaDataSubscription<ITrade>? tradeSubscription = null;
@@ -1587,6 +1702,9 @@ public class Broker : IDisposable
         AlpacaStreamingClient?.Dispose();
         AlpacaDataStreamingClient?.Dispose();
         AlpacaCryptoStreamingClient?.Dispose();
+
+        Conn.Close();
+
     }
 
     #endregion

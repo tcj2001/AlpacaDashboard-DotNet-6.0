@@ -2,6 +2,8 @@ global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;
 global using Serilog;
+using System.Configuration;
+using ConfigurationExtensions = Microsoft.Extensions.Configuration.ConfigurationExtensions;
 
 namespace AlpacaDashboard;
 
@@ -22,7 +24,7 @@ internal class Program
             .AddJsonFile("appsettings.json")
             .AddUserSecrets<Program>()
             .Build();
-
+        
         var builder = new HostBuilder()
                .ConfigureServices((hostContext, services) =>
                {
@@ -30,6 +32,8 @@ internal class Program
                    services.Configure<MySettings>(configuration.GetSection("MySettings"));
                    services.Configure<PaperKey>(configuration.GetSection("PaperKey"));
                    services.Configure<LiveKey>(configuration.GetSection("LiveKey"));
+                   services.Configure<ConnectionStringSettings>(configuration.GetSection("ConnectionStrings"));
+                   
 
                    //Add Serilog
                    Log.Logger = new LoggerConfiguration()
@@ -43,6 +47,7 @@ internal class Program
                    });
 
                });
+
 
         var host = builder.Build();
 

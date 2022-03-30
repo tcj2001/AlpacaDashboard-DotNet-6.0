@@ -67,7 +67,9 @@ PaperKey:API_KEY = xxxxxxxxxxxxxxxxxxxx
 LiveKey:API_SECRET =  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 LiveKey:API_KEY = xxxxxxxxxxxxxxxxxxxx 
 
-A Log is created for the Dashboard in the Logs folder, also individual logs are created for each bots and asset combination.  
+A **Log** is created for the Dashboard in the Logs folder, also individual **logs** are created for each bots and asset combination.  
+
+All trades are recorded in a **SQLite database** for price analysis like profit/loss by Date/Bot/Symbol etc.  
 
 This Dashboard should also work for non-subscribed users by changing the subscribed setting to false in the appsetting.json file.  
 
