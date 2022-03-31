@@ -231,7 +231,14 @@ internal class Scalper : IBot
         var amountToLong = buyingPower;
 
         //calculate quantity
-        var calculatedQty = QtyToBuy; //CalculateQuantity(assetClass, amountToLong, close);
+        var calculatedQty = 0M;
+        OrderType preferedOrderType = OrderType.Limit;
+        if (QtyToBuy * price < buyingPower)
+            calculatedQty = QtyToBuy;
+        else
+            (calculatedQty, preferedOrderType) = await CalculateQuantity(assetClass, buyingPower, price, preferedOrderType);
+        if (calculatedQty == 0)
+            return updatedStock;
 
         if (symbol != null)
         {
@@ -241,7 +248,7 @@ internal class Scalper : IBot
                 {
                     if (position == 0) 
                     { 
-                        (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Day, true,
+                        (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, TimeInForce.Day, true,
                                 asset, OrderQuantity.Fractional(calculatedQty), price, null, null, null,
                                 null, null).ConfigureAwait(false);
                         log.Information($"Initial Purchase : {message}");
@@ -280,18 +287,39 @@ internal class Scalper : IBot
         return updatedStock;
     }
 
-    private static decimal CalculateQuantity(AssetClass? assetClass, decimal amount, decimal close)
+
+    /// <summary>
+    /// UsEquity  if calculated qty is fraction change order type to market else whatever is passed
+    /// </summary>
+    /// <param name="assetClass"></param>
+    /// <param name="amount"></param>
+    /// <param name="close"></param>
+    /// <param name="inputOrderType"></param>
+    /// <returns></returns>
+    private async Task<(decimal, OrderType)> CalculateQuantity(AssetClass? assetClass, decimal amount, decimal close, OrderType inputOrderType)
     {
+
         var calculatedQty = 0M;
+        calculatedQty = Math.Round(amount / close, 2);
+        OrderType orderType = inputOrderType;
         if (assetClass == AssetClass.UsEquity)
         {
-            calculatedQty = (Int64)(amount / close);
+            bool marketOpen = await Broker.IsMarketOpen() ?? false;
+            if (!marketOpen)
+            {
+                orderType = OrderType.Limit;
+                if (calculatedQty % 1 != 0)
+                {
+                    calculatedQty = (Int64)calculatedQty;
+                }
+            }
+            else
+            {
+                calculatedQty = amount / close;
+                if (calculatedQty % 1 != 0)
+                    orderType = OrderType.Market;
+            }
         }
-        if (assetClass == AssetClass.Crypto)
-        {
-            calculatedQty = amount / close;
-        }
-
-        return Math.Round(calculatedQty,2);
+        return (calculatedQty, orderType);
     }
 }

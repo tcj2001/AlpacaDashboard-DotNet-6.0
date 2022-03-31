@@ -1413,6 +1413,30 @@ public class Broker : IDisposable
     #region other methods
 
     /// <summary>
+    /// Check if market is open
+    /// </summary>
+    /// <returns></returns>
+    public async Task<bool?> IsMarketOpen()
+    {
+        return (await AlpacaTradingClient.GetClockAsync()).IsOpen;
+    }
+
+    /// <summary>
+    /// Time Left for Market to close
+    /// </summary>
+    /// <returns></returns>
+    public async Task<TimeSpan> TimeLeftToClose()
+    {
+        var today = DateTime.Today;
+        var interval = today.AddDays(-1).GetInclusiveIntervalFromThat().WithInto(today);
+        var calendar = await AlpacaTradingClient.ListCalendarAsync(new CalendarRequest().SetTimeInterval(interval));
+        var calendarDate = calendar.Last().TradingDateEst;
+        var closingTime = calendar.Last().TradingCloseTimeUtc;
+        var timeUntilClose = closingTime - DateTime.UtcNow;
+        return timeUntilClose;
+    }
+
+    /// <summary>
     /// Get positions for a list of symbols
     /// </summary>
     /// <returns></returns>
