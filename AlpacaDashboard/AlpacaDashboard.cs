@@ -56,11 +56,12 @@ public partial class AlpacaDashboard : Form
 
         #region portfolio
         this.listViewPositions.Columns.Add("Asset", 100);
+        this.listViewPositions.Columns.Add("Bid", 100);
         this.listViewPositions.Columns.Add("Price", 100);
+        this.listViewPositions.Columns.Add("Ask", 100);
         this.listViewPositions.Columns.Add("Quantity", 100);
         this.listViewPositions.Columns.Add("Market Value", 100);
         this.listViewPositions.Columns.Add("Total Profit", 100);
-        this.listViewPositions.Columns.Add("Session Profit", 100);
 
         this.listViewClosedOrders.Columns.Add("Asset", 100);
         this.listViewClosedOrders.Columns.Add("Order", 100);
@@ -214,13 +215,15 @@ public partial class AlpacaDashboard : Form
 
 
             //used in ui event to load listview
-            splitContainer.SplitterDistance = 440;
+            splitContainer.SplitterDistance = 650;
             splitContainer.Panel1.Controls.Add(listView);
-            listView.Columns.Add("Asset", 100);
-            listView.Columns.Add("Price", 100);
-            listView.Columns.Add("Quantity", 100);
-            listView.Columns.Add("Market Value", 100);
-            listView.Columns.Add("Total Profit", 100);
+            listView.Columns.Add("Asset", 90);
+            listView.Columns.Add("Bid", 90);
+            listView.Columns.Add("Price", 90);
+            listView.Columns.Add("Ask", 90);
+            listView.Columns.Add("Quantity", 90);
+            listView.Columns.Add("Market Value", 90);
+            listView.Columns.Add("Total Profit", 90);
             listView.MouseClick += BotList_MouseClick;
             TableLayoutPanel tableLayoutPanel = new()
             {
@@ -366,14 +369,14 @@ public partial class AlpacaDashboard : Form
             tp.Tag = instances;
 
             //used in ui event to load listview
-            splitContainer.SplitterDistance = 440;
+            splitContainer.SplitterDistance = 650;
             splitContainer.Panel1.Controls.Add(listView);
-            listView.Columns.Add("Asset", 75);
-            listView.Columns.Add("BidSize", 75);
-            listView.Columns.Add("BidPrice", 75);
-            listView.Columns.Add("Last", 75);
-            listView.Columns.Add("AskPrice", 75);
-            listView.Columns.Add("AskSize", 75);
+            listView.Columns.Add("Asset", 90);
+            listView.Columns.Add("BidSize", 90);
+            listView.Columns.Add("BidPrice", 90);
+            listView.Columns.Add("Last", 90);
+            listView.Columns.Add("AskPrice", 90);
+            listView.Columns.Add("AskSize", 90);
             listView.MouseClick += WatchList_MouseClick;
             TableLayoutPanel tableLayoutPanel = new()
             {
@@ -758,7 +761,9 @@ public partial class AlpacaDashboard : Form
                     stock.Position = pos;
                 }
                 ListViewItem item = new(pos.Symbol);
+                item.SubItems.Add("0.00");
                 item.SubItems.Add(pos.AssetLastPrice.ToString());
+                item.SubItems.Add("0.00");
                 item.SubItems.Add(pos.Quantity.ToString());
                 item.SubItems.Add(pos.MarketValue.ToString());
                 item.SubItems.Add(pos.UnrealizedProfitLoss.ToString());
@@ -786,24 +791,30 @@ public partial class AlpacaDashboard : Form
                     {
                         if (stock.Position != null)
                         {
-                            if (item.SubItems[2].Text != stock.Position.Quantity.ToString()) item.SubItems[2].Text = stock.Position.Quantity.ToString();
+                            if (item.SubItems[4].Text != stock.Position.Quantity.ToString()) item.SubItems[4].Text = stock.Position.Quantity.ToString();
                         }
 
                         if (stock.Trade != null)
                         {
-                            if (item.SubItems[1].Text != stock.Trade?.Price.ToString()) item.SubItems[1].Text = stock.Trade?.Price.ToString();
+                            if (item.SubItems[2].Text != stock.Trade?.Price.ToString()) item.SubItems[2].Text = stock.Trade?.Price.ToString();
+                        }
+
+                        if (stock.Quote != null)
+                        {
+                            if (item.SubItems[1].Text != stock.Quote?.BidPrice.ToString()) item.SubItems[1].Text = stock.Quote?.BidPrice.ToString();
+                            if (item.SubItems[3].Text != stock.Quote?.AskPrice.ToString()) item.SubItems[3].Text = stock.Quote?.AskPrice.ToString();
                         }
 
                         try
                         {
-                            if (item.SubItems[1].Text != "" && item.SubItems[2].Text != "")
+                            if (item.SubItems[2].Text != "" && item.SubItems[4].Text != "")
                             {
-                                var marketValue = Convert.ToDecimal(item.SubItems[1].Text) * Convert.ToDecimal(item.SubItems[2].Text);
-                                if (item.SubItems[3].Text != marketValue.ToString()) item.SubItems[3].Text = marketValue.ToString();
+                                var marketValue = Convert.ToDecimal(item.SubItems[2].Text) * Convert.ToDecimal(item.SubItems[4].Text);
+                                if (item.SubItems[5].Text != marketValue.ToString()) item.SubItems[5].Text = marketValue.ToString();
                                 if (stock.Position?.CostBasis != null)
                                 {
                                     var profit = marketValue - Convert.ToDecimal(stock.Position?.CostBasis.ToString());
-                                    if (item.SubItems[4].Text != profit.ToString()) item.SubItems[4].Text = profit.ToString();
+                                    if (item.SubItems[6].Text != profit.ToString()) item.SubItems[6].Text = profit.ToString();
                                 }
                             }
                         }
@@ -2159,7 +2170,9 @@ public partial class AlpacaDashboard : Form
                         }
                         if (assetPosition.Value != null)
                         {
+                            item.SubItems.Add("0.00");
                             item.SubItems.Add(assetPosition.Value.AssetLastPrice.ToString());
+                            item.SubItems.Add("0.00");
                             item.SubItems.Add(assetPosition.Value.Quantity.ToString());
                             item.SubItems.Add(assetPosition.Value.MarketValue.ToString());
                             item.SubItems.Add(assetPosition.Value.UnrealizedProfitLoss.ToString());
@@ -2167,6 +2180,8 @@ public partial class AlpacaDashboard : Form
                         }
                         else
                         {
+                            item.SubItems.Add("0.00");
+                            item.SubItems.Add("0.00");
                             item.SubItems.Add("0.00");
                             item.SubItems.Add("0");
                             item.SubItems.Add("0.00");

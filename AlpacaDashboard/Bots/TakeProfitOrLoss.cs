@@ -140,14 +140,6 @@ internal class TakeProfitOrLoss : IBot
                
             closingPrices = bars.Select(x => x?.Close).ToList();
 
-            //cancel all existing open orders
-            await Broker.DeleteOpenOrders(stock?.Asset?.Symbol);
-            log.Information($"Closing any open orders for {stock?.Asset?.Symbol}");
-
-            //liquidate position
-            await Broker.LiquidatePosition(stock?.Asset?.Symbol);
-            log.Information($"Closing any position for {stock?.Asset?.Symbol}");
-
             //do while its not ended
             while (!token.IsCancellationRequested)
             {

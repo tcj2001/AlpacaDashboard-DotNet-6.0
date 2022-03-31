@@ -386,7 +386,7 @@ public class Broker : IDisposable
             }
 
             //write info to database
-            InsertMethod(name, order?.OrderClass.ToString(), orderType, timeinForce, extendedHours, orderQuantity.Value, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, trailOffsetPercentage, trailOffsetDollars, order);
+            InsertMethod(name, order?.OrderClass.ToString(), order?.OrderStatus.ToString(), orderType, timeinForce, extendedHours, orderQuantity.Value, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, trailOffsetPercentage, trailOffsetDollars, order);
 
             SendStatusMessage($"{Environment} : {message}");
             return (order, message);
@@ -479,7 +479,7 @@ public class Broker : IDisposable
             }
 
             //write info to database
-            InsertMethod(name, order?.OrderClass.ToString(), orderType, timeinForce, extendedHours, orderQuantity.Value, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, 0, 0M, order);
+            InsertMethod(name, order?.OrderClass.ToString(), order?.OrderStatus.ToString(), orderType, timeinForce, extendedHours, orderQuantity.Value, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, 0, 0M, order);
 
             SendStatusMessage($"{Environment} : {message}");
             return (order, message);
@@ -509,18 +509,10 @@ public class Broker : IDisposable
             message = $"Replacing {orderId.ToString()} with limit price {limitPrice.ToString()} {stpm} {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}";
             ChangeOrderRequest changeOrderRequest = new ChangeOrderRequest(orderId) { LimitPrice = limitPrice, StopPrice = stopPrice };
             order = await AlpacaTradingClient.PatchOrderAsync(changeOrderRequest, token).ConfigureAwait(false);
-            IStock? stock = StockObjects.GetStock(order.Symbol);
-            if (stock != null)
-            {
-                if (!stock.OpenOrders.Exists(x => x == order.OrderId))
-                {
-                    stock.OpenOrders.Add(order.OrderId);
-                }
-            }
 
-            //write info to database
+            //delete replaced order from database
             SQLiteCommand deleteSQL = new SQLiteCommand($"Delete from {Environment.ToString()}Trades where orderId = ?", Conn);
-            deleteSQL.Parameters.Add(new SQLiteParameter("orderId", order?.ReplacesOrderId.ToString()));  //currently ReplacesOrderId not populated
+            deleteSQL.Parameters.Add(new SQLiteParameter("orderId", orderId.ToString()));
             try
             {
                 deleteSQL.ExecuteNonQuery();
@@ -531,8 +523,17 @@ public class Broker : IDisposable
                 SendStatusMessage($"{Environment} : {ex.Message}");
             }
 
+            IStock? stock = StockObjects.GetStock(order.Symbol);
+            if (stock != null)
+            {
+                if (!stock.OpenOrders.Exists(x => x == order.OrderId))
+                {
+                    stock.OpenOrders.Add(order.OrderId);
+                }
+            }
+
             //write info to database
-            InsertMethod(name, "Replaced", order?.OrderType, order?.TimeInForce, true, order?.Quantity, limitPrice,0M, 0M, 0M, 0, 0M, order);
+            InsertMethod(name, order?.OrderClass.ToString(), order?.OrderStatus.ToString(), order?.OrderType, order?.TimeInForce, false, order?.Quantity, limitPrice,null, null, null, null, null, order);
 
             SendStatusMessage($"{Environment} : {message}");
             return (order, message);
@@ -546,9 +547,11 @@ public class Broker : IDisposable
     }
 
     /// <summary>
-    /// Trade Insert record method for database
+    /// Insert Trade record in database
     /// </summary>
     /// <param name="name"></param>
+    /// <param name="orderClass"></param>
+    /// <param name="orderStatus"></param>
     /// <param name="orderType"></param>
     /// <param name="timeinForce"></param>
     /// <param name="extendedHours"></param>
@@ -560,15 +563,16 @@ public class Broker : IDisposable
     /// <param name="trailOffsetPercentage"></param>
     /// <param name="trailOffsetDollars"></param>
     /// <param name="order"></param>
-    private void InsertMethod(string name, string? orderClass, OrderType? orderType, TimeInForce? timeinForce, bool extendedHours, decimal? orderQuantity, decimal? limitPrice, decimal? takeProfitLimitPrice, decimal? stopLossStopPrice, decimal? stopLossLimitPrice, int? trailOffsetPercentage, decimal? trailOffsetDollars, IOrder? order)
+    private void InsertMethod(string name, string? orderClass, string? orderStatus, OrderType? orderType, TimeInForce? timeinForce, bool extendedHours, decimal? orderQuantity, decimal? limitPrice, decimal? takeProfitLimitPrice, decimal? stopLossStopPrice, decimal? stopLossLimitPrice, int? trailOffsetPercentage, decimal? trailOffsetDollars, IOrder? order)
     {
-        SQLiteCommand insertSQL = new SQLiteCommand($"Insert into {Environment.ToString()}Trades (date, name, orderId, orderSide, orderType, orderClass, timeinForce, extendedHours, symbol, assetClass, orderQuantity, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, trailOffsetPercentage, trailOffsetDollars) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", Conn);
+        SQLiteCommand insertSQL = new SQLiteCommand($"Insert into {Environment.ToString()}Trades (date, name, orderId, orderSide, orderType, orderClass, orderStatus, timeinForce, extendedHours, symbol, assetClass, orderQuantity, limitPrice, takeProfitLimitPrice, stopLossStopPrice, stopLossLimitPrice, trailOffsetPercentage, trailOffsetDollars) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", Conn);
         insertSQL.Parameters.Add(new SQLiteParameter("date", TimeZoneInfo.ConvertTimeFromUtc(order?.CreatedAtUtc ?? DateTime.UtcNow, easternZone).ToString()));
         insertSQL.Parameters.Add(new SQLiteParameter("name", name));
         insertSQL.Parameters.Add(new SQLiteParameter("orderId", order?.OrderId.ToString()));
         insertSQL.Parameters.Add(new SQLiteParameter("orderSide", order?.OrderSide.ToString()));
         insertSQL.Parameters.Add(new SQLiteParameter("orderType", orderType.ToString()));
         insertSQL.Parameters.Add(new SQLiteParameter("orderClass", orderClass?.ToString()));
+        insertSQL.Parameters.Add(new SQLiteParameter("orderStatus", orderStatus));
         insertSQL.Parameters.Add(new SQLiteParameter("timeinForce", timeinForce.ToString()));
         insertSQL.Parameters.Add(new SQLiteParameter("extendedHours", extendedHours.ToString()));
         insertSQL.Parameters.Add(new SQLiteParameter("symbol", order?.Symbol));
@@ -691,6 +695,20 @@ public class Broker : IDisposable
     /// <param name="obj"></param>
     private async void AlpacaStreamingClient_OnTradeUpdate(ITradeUpdate obj)
     {
+        //update status info to database
+        SQLiteCommand updateSQL = new SQLiteCommand($"Update {Environment.ToString()}Trades Set orderStatus = ? Where orderId = ?", Conn);
+        updateSQL.Parameters.Add(new SQLiteParameter("orderStatus", obj.Order.OrderStatus.ToString()));
+        updateSQL.Parameters.Add(new SQLiteParameter("orderId", obj.Order.OrderId.ToString()));
+        try
+        {
+            updateSQL.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation($"{Environment}  {ex.Message}");
+            SendStatusMessage($"{Environment} : {ex.Message}");
+        }
+
         string? message = null;
 
         var asset = await GetAsset(obj.Order.Symbol).ConfigureAwait(false);
@@ -715,10 +733,29 @@ public class Broker : IDisposable
             _logger.LogInformation(message);
 
             var cost = 0M;
-            if(obj.Order.OrderSide == OrderSide.Buy)
-                cost = -1 * obj.Order.FilledQuantity * obj.Order.AverageFillPrice ?? 0M;
+            decimal? price = 0M;
+            switch (obj.Order.OrderType)
+            {
+                case OrderType.Market:
+                    price = obj.Order.AverageFillPrice;
+                    break;
+                case OrderType.Limit:
+                    price = obj.Order.LimitPrice;
+                    break;
+                case OrderType.Stop:
+                    price = obj.Order.StopPrice;
+                    break;
+                case OrderType.StopLimit:
+                    price = obj.Order.LimitPrice;
+                    break;
+                case OrderType.TrailingStop:
+                    price = obj.Order.StopPrice;
+                    break;
+            }
+            if (obj.Order.OrderSide == OrderSide.Buy)
+                cost = -1 * obj.Order.FilledQuantity * price ?? 0M;
             else
-                cost = obj.Order.FilledQuantity * obj.Order.AverageFillPrice ?? 0M;
+                cost = obj.Order.FilledQuantity * price ?? 0M;
 
             if (stock != null)
             {
@@ -728,13 +765,13 @@ public class Broker : IDisposable
                 }
             }
 
-            //write info to database
-            SQLiteCommand updateSQL = new SQLiteCommand($"Update {Environment.ToString()}Trades Set Value = ? Where orderId = ?", Conn);
-            updateSQL.Parameters.Add(new SQLiteParameter("value", cost));
-            updateSQL.Parameters.Add(new SQLiteParameter("orderId", obj.Order.OrderId.ToString()));
+            //update value
+            SQLiteCommand updateSQL2 = new SQLiteCommand($"Update {Environment.ToString()}Trades Set Value = ? Where orderId = ?", Conn);
+            updateSQL2.Parameters.Add(new SQLiteParameter("value", cost));
+            updateSQL2.Parameters.Add(new SQLiteParameter("orderId", obj.Order.OrderId.ToString()));
             try
             {
-                updateSQL.ExecuteNonQuery();
+                updateSQL2.ExecuteNonQuery();
             }
             catch (Exception ex)
             {

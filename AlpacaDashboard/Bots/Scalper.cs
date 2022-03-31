@@ -58,12 +58,16 @@ internal class Scalper : IBot
     public int AverageBars { get => _averageBars; set => _averageBars = value; }
 
     //Scale
-    private int _scale = 1;
-    public int Scale { get => _scale; set => _scale = value; }
+    private int _qtyToBuy = 1;
+    public int QtyToBuy { get => _qtyToBuy; set => _qtyToBuy = value; }
 
     //profit percentage
     private decimal _profitAmount = 1M;
     public decimal ProfitAmount { get => _profitAmount; set => _profitAmount = value; }
+
+    //profit percentage
+    private decimal _DCAPerc = .25M;
+    public decimal DCAPerc { get => _DCAPerc; set => _DCAPerc = value; }
 
     #endregion
 
@@ -93,7 +97,7 @@ internal class Scalper : IBot
         //Run you bot logic until cancelled
         if (stock != null)
         {
-            await Task.Run(() => BotStartCall(stock, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), AverageBars, Scale, source.Token), source.Token).ConfigureAwait(false);
+            await Task.Run(() => BotStartCall(stock, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), AverageBars, QtyToBuy, source.Token), source.Token).ConfigureAwait(false);
         }
 
         return source;
@@ -136,14 +140,6 @@ internal class Scalper : IBot
                
             closingPrices = bars.Select(x => x?.Close).ToList();
 
-            //cancel all existing open orders
-            await Broker.DeleteOpenOrders(stock?.Asset?.Symbol);
-            log.Information($"Closing any open orders for {stock?.Asset?.Symbol}");
-
-            //liquidate position
-            //await Broker.LiquidatePosition(stock?.Asset?.Symbol);
-            //log.Information($"Closing any position for {stock?.Asset?.Symbol}");
-
             //do while its not ended
             while (!token.IsCancellationRequested)
             {
@@ -153,15 +149,15 @@ internal class Scalper : IBot
                 //your main bot logic here
                 /////////////////////////////////////////////////////////////////////////////////
 
-                updatedStock = await ScalperLogic(log, scale, closingPrices, updatedStock).ConfigureAwait(false);
+                updatedStock = await ScalperLogic(log, closingPrices, updatedStock).ConfigureAwait(false);
 
                 /////////////////////////////////////////////////////////////////////////////////
 
-                closingPrices.Add(updatedStock?.MinuteBar?.Close);
-                if (closingPrices.Count > BarTimeFrameCount)
-                {
-                    closingPrices.RemoveAt(0);
-                }
+                //closingPrices.Add(updatedStock?.MinuteBar?.Close);
+                //if (closingPrices.Count > BarTimeFrameCount)
+                //{
+                //    closingPrices.RemoveAt(0);
+                //}
 
                 var looptime = 0;
                 if (barTimeFrame.Unit == BarTimeFrameUnit.Minute) looptime = barTimeFrame.Value;
@@ -187,15 +183,16 @@ internal class Scalper : IBot
     /// <param name="lastTradeOpen"></param>
     /// <param name="lastTradeId"></param>
     /// <returns></returns>
-    private async Task<IStock?> ScalperLogic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
+    private async Task<IStock?> ScalperLogic(Serilog.Core.Logger log, List<decimal?> closingPrices, IStock? updatedStock)
     {
-        //wait till minute bar is populated
-        if (updatedStock?.MinuteBar == null)
-            return updatedStock;
-       
         //close price
         var close = updatedStock?.Trade?.Price ?? 0M;
         if (close==0)
+            return updatedStock;
+
+        var price = 0M;
+        price = updatedStock?.Quote?.AskPrice ?? 0M;
+        if (price == 0)
             return updatedStock;
 
         //symbol
@@ -208,9 +205,6 @@ internal class Scalper : IBot
         //current position
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
 
-        //calculate average price
-        var avg = closingPrices.Average();
-        var diff = (avg - close) ?? 0M;
 
         //shortable
         var isAssetShortable = updatedStock?.Asset?.Shortable;
@@ -230,27 +224,38 @@ internal class Scalper : IBot
 
         // Check how much we currently have in this position.
         var positionQuantity = updatedStock?.Position?.Quantity ?? 0M;
-        var currentProfit = updatedStock?.Position?.UnrealizedProfitLoss ?? 0M;
+        var currentProfit = updatedStock?.Trade?.Price * updatedStock?.Position?.Quantity -  updatedStock?.Position?.CostBasis ?? 0M;
+        var currentProfitOrRLossPerc = (updatedStock?.Trade?.Price * updatedStock?.Position?.Quantity - updatedStock?.Position?.CostBasis) / updatedStock?.Position?.CostBasis * 100 ?? 0M;
 
         // Allocate a percent of portfolio 
         var amountToLong = buyingPower;
 
         //calculate quantity
-        var calculatedQty = CalculateQuantity(assetClass, amountToLong, close);
-        if (calculatedQty == 0)
-            return updatedStock;
+        var calculatedQty = QtyToBuy; //CalculateQuantity(assetClass, amountToLong, close);
 
         if (symbol != null)
         {
-            if (!lastTradeOpen && position == 0)
+            if (!lastTradeOpen)
             {
                 if (calculatedQty > 0)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Day, false,
-                            asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
-                            null, null).ConfigureAwait(false);
-
-                    log.Information($"{message}");
+                    if (position == 0) 
+                    { 
+                        (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Day, true,
+                                asset, OrderQuantity.Fractional(calculatedQty), price, null, null, null,
+                                null, null).ConfigureAwait(false);
+                        log.Information($"Initial Purchase : {message}");
+                    }
+                    else
+                    {
+                        if(currentProfitOrRLossPerc <= 0 -1 * DCAPerc)
+                        {
+                            (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Day, true,
+                                    asset, OrderQuantity.Fractional(calculatedQty), price, null, null, null,
+                                    null, null).ConfigureAwait(false);
+                            log.Information($"Dollar cost Averageing Purchase : {message}");
+                        }
+                    }
                 }
             }
             else
@@ -265,11 +270,10 @@ internal class Scalper : IBot
                 }
                 else if (currentProfit > ProfitAmount && position > 0 && !lastTradeOpen)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, OrderType.Limit, TimeInForce.Day, false,
+                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, OrderType.Limit, TimeInForce.Day, true,
                             asset, OrderQuantity.Fractional((decimal)position), close, null, null, null,
                             null, null).ConfigureAwait(false);
-
-                    log.Information($"With profit : {message}");
+                    log.Information($"Sell With profit : {message}");
                 }
             }
         }
