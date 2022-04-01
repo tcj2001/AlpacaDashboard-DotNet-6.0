@@ -1,6 +1,6 @@
 ﻿namespace AlpacaDashboard.Bots;
 
-internal class Scalper : IBot
+internal class DCA : IBot
 {
     #region Required
     //Broker Environment
@@ -62,9 +62,12 @@ internal class Scalper : IBot
     public decimal QtyToBuy { get => _qtyToBuy; set => _qtyToBuy = value; }
 
     //profit percentage
-    private decimal _scalpPrice = .05M;
-    public decimal ScalpPrice { get => _scalpPrice; set => _scalpPrice = value; }
+    private decimal _profitAmount = 10M;
+    public decimal ProfitAmount { get => _profitAmount; set => _profitAmount = value; }
 
+    //profit percentage
+    private decimal _DCAPerc = .25M;
+    public decimal DCAPerc { get => _DCAPerc; set => _DCAPerc = value; }
 
     #endregion
 
@@ -72,7 +75,7 @@ internal class Scalper : IBot
     /// Constructor
     /// </summary>
     /// <param name="broker"></param>
-    public Scalper(Broker broker)
+    public DCA(Broker broker)
     {
         Broker = broker;
         ActiveAssets = new Dictionary<IAsset, CancellationTokenSource>();
@@ -132,9 +135,6 @@ internal class Scalper : IBot
             TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
             DateTime easternTime = TimeZoneInfo.ConvertTimeFromUtc(timeUtc, easternZone);
 
-            //close all open orders
-            await Broker.DeleteOpenOrders(stock?.Asset?.Symbol);
-
             //get historical bars
             var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
                
@@ -185,6 +185,7 @@ internal class Scalper : IBot
     /// <returns></returns>
     private async Task<IStock?> Logic(Serilog.Core.Logger log, List<decimal?> closingPrices, IStock? updatedStock)
     {
+
         //bid, close, ask price
         var bidPrice = 0M;
         bidPrice = updatedStock?.Quote?.BidPrice ?? 0M;
@@ -199,6 +200,10 @@ internal class Scalper : IBot
         askPrice = updatedStock?.Quote?.AskPrice ?? 0M;
         if (askPrice == 0)
             return updatedStock;
+
+        //calculate average price
+        var avg = closingPrices.Average();
+        var diff = avg - close;
 
         //symbol
         var symbol = updatedStock?.Asset?.Symbol;
@@ -237,7 +242,7 @@ internal class Scalper : IBot
 
         //calculate quantity
         var calculatedQty = 0M;
-        OrderType preferedOrderType = OrderType.Market;
+        OrderType preferedOrderType = OrderType.Limit;
         TimeInForce timeInForce = TimeInForce.Gtc;
         bool extendedHours = false;
         if (QtyToBuy * askPrice < buyingPower)
@@ -251,29 +256,50 @@ internal class Scalper : IBot
         {
             if (!lastTradeOpen)
             {
-                if (position == 0)
+                if (!(currentProfit > ProfitAmount && bidPrice > averageEntryPrice))
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
-                            asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
-                            null, null).ConfigureAwait(false);
-                    log.Information($"Initial Purchase : {message}");
+                    if (position == 0)
+                    {
+                        if (diff < 0)
+                        {
+                            (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
+                                    asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
+                                    null, null).ConfigureAwait(false);
+                            log.Information($"Initial Purchase : {message}");
+                        }
+                    }
+                    else
+                    {
+                        if (diff > 0)
+                        {
+                            if (currentProfitOrRLossPerc <= 0 - 1 * DCAPerc)
+                            {
+                                (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
+                                        asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
+                                        null, null).ConfigureAwait(false);
+                                log.Information($"Dollar cost Averageing Purchase : {message}");
+                            }
+                        }
+                    }
                 }
                 else
                 {
+                    //delete open orders for this symbol
+                    await Broker.DeleteOpenOrders(symbol);
                     if (position > 0)
                     {
-                        (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, OrderType.Limit, timeInForce, extendedHours,
-                            asset, OrderQuantity.Fractional((decimal)position), averageEntryPrice + ScalpPrice, null, null, null,
-                            null, null).ConfigureAwait(false);
+                        (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Sell, preferedOrderType, timeInForce, extendedHours,
+                                asset, OrderQuantity.Fractional((decimal)position), close, null, null, null,
+                                null, null).ConfigureAwait(false);
                         log.Information($"Sell With profit : {message}");
                     }
                 }
             }
             else
             {
-                if (position == 0)
+                if (lastOrder?.OrderId != null)
                 {
-                    if (lastOrder?.OrderId != null)
+                    if (diff > 0)
                     {
                         var orderId = lastOrder != null ? lastOrder.OrderId : new Guid();
                         //var price = lastOrder?.OrderSide == OrderSide.Buy ? askPrice : bidPrice;

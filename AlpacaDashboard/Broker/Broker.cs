@@ -230,7 +230,7 @@ public class Broker : IDisposable
         if (obj.ToString() == "Authorized")
         {
             //update for the first time after authorized
-            await UpdateEnviromentData().ConfigureAwait(false);
+            await UpdateEnviromentData();
         }
     }
     private void AlpacaDataStreamingClient_SocketClosed()
@@ -526,9 +526,9 @@ public class Broker : IDisposable
             IStock? stock = StockObjects.GetStock(order.Symbol);
             if (stock != null)
             {
-                if (!stock.OpenOrders.Exists(x => x == order.OrderId))
+                if (!stock.OpenOrders.Exists(x => x.OrderId == order.OrderId))
                 {
-                    stock.OpenOrders.Add(order.OrderId);
+                    stock.OpenOrders.Add(order);
                 }
             }
 
@@ -602,7 +602,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task<ITrade?> GetLatestTrade(string symbol)
     {
-        var asset = await GetAsset(symbol).ConfigureAwait(false);
+        var asset = await GetAsset(symbol);
 
         try
         {
@@ -630,7 +630,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task<IQuote?> GetLatestQuote(string symbol)
     {
-        var asset = await GetAsset(symbol).ConfigureAwait(false);
+        var asset = await GetAsset(symbol);
 
         try
         {
@@ -711,7 +711,7 @@ public class Broker : IDisposable
 
         string? message = null;
 
-        var asset = await GetAsset(obj.Order.Symbol).ConfigureAwait(false);
+        var asset = await GetAsset(obj.Order.Symbol);
         //subscribe asset
         await Subscribe(asset,"Portfolio");
 
@@ -759,9 +759,9 @@ public class Broker : IDisposable
 
             if (stock != null)
             {
-                if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
+                if (stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
                 {
-                    stock.OpenOrders.Remove(obj.Order.OrderId);
+                    stock.OpenOrders.RemoveAll(x => x.OrderId == obj.Order.OrderId);
                 }
             }
 
@@ -779,7 +779,7 @@ public class Broker : IDisposable
                 SendStatusMessage($"{Environment} : {ex.Message}");
             }
 
-            await UpdateEnviromentData().ConfigureAwait(false);
+            await UpdateEnviromentData();
         }
         if (obj.Order.OrderStatus == OrderStatus.PartiallyFilled)
         {
@@ -790,47 +790,47 @@ public class Broker : IDisposable
             SendStatusMessage(message);
             _logger.LogInformation(message);
 
-            await UpdateEnviromentData().ConfigureAwait(false);
+            await UpdateEnviromentData();
         }
         if (obj.Order.OrderStatus == OrderStatus.New || obj.Order.OrderStatus == OrderStatus.Accepted)
         {
             if (stock != null)
             {
-                if (!stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
+                if (!stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
                 {
-                    stock.OpenOrders.Add(obj.Order.OrderId);
+                    stock.OpenOrders.Add(obj.Order);
                 }
             }
 
-            await UpdateOpenOrders().ConfigureAwait(false);
-            await UpdateClosedOrders().ConfigureAwait(false);
+            await UpdateOpenOrders();
+            await UpdateClosedOrders();
         }
         if (obj.Order.OrderStatus == OrderStatus.Canceled)
         {
             if (stock != null)
             {
-                if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
+                if (stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
                 {
-                    stock.OpenOrders.Remove(obj.Order.OrderId);
+                    stock.OpenOrders.RemoveAll(x => x.OrderId == obj.Order.OrderId);
                 }
             }
-            await UpdateOpenOrders().ConfigureAwait(false);
-            await UpdateClosedOrders().ConfigureAwait(false);
+            await UpdateOpenOrders();
+            await UpdateClosedOrders();
         }
         if (obj.Order.OrderStatus == OrderStatus.Replaced)
         {
             if (stock != null)
             {
-                if (stock.OpenOrders.Exists(x => x == obj.Order.OrderId))
+                if (stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
                 {
-                    stock.OpenOrders.Remove(obj.Order.OrderId);
+                    stock.OpenOrders.RemoveAll(x => x.OrderId == obj.Order.OrderId);
                 }
             }
         }
         if (obj.Order.OrderStatus == OrderStatus.Suspended)
         {
-            await UpdateOpenOrders().ConfigureAwait(false);
-            await UpdateClosedOrders().ConfigureAwait(false);
+            await UpdateOpenOrders();
+            await UpdateClosedOrders();
         }
 
         //update position in stock
@@ -919,7 +919,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdatePositions()
     {
-        var positions = await ListPositions().ConfigureAwait(false);
+        var positions = await ListPositions();
         foreach(var pos in positions)
         {
             IStock? stock = StockObjects.GetStock(pos.Symbol);
@@ -969,7 +969,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdateClosedOrders()
     {
-        var closedOrders = await ClosedOrders().ConfigureAwait(false);
+        var closedOrders = await ClosedOrders();
 
         ClosedOrderUpdatedEventArgs ocouea = new ClosedOrderUpdatedEventArgs
         {
@@ -1011,16 +1011,16 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdateOpenOrders()
     {
-        var openOrders = await OpenOrders().ConfigureAwait(false);
+        var openOrders = await OpenOrders();
       
         foreach (var ord in openOrders)
         {
             IStock? stock = StockObjects.GetStock(ord.Symbol);
             if (stock != null) 
             {
-                if (!stock.OpenOrders.Exists(x => x == ord.OrderId))
+                if (!stock.OpenOrders.Exists(x => x.OrderId == ord.OrderId))
                 {
-                    stock.OpenOrders.Add(ord.OrderId);
+                    stock.OpenOrders.Add(ord);
                 }
             }
         }
@@ -1102,7 +1102,7 @@ public class Broker : IDisposable
 
         if (assets != null)
         {
-            var symbolAndSnapshotList = await ListSnapShots(assets, 5000).ConfigureAwait(false);
+            var symbolAndSnapshotList = await ListSnapShots(assets, 5000);
 
             foreach (var symbolAndSnapshot in symbolAndSnapshotList)
             {
@@ -1113,7 +1113,7 @@ public class Broker : IDisposable
                 }
             }
 
-            var symbolAndTradesList = await ListTrades(assets, 5000).ConfigureAwait(false);
+            var symbolAndTradesList = await ListTrades(assets, 5000);
 
             foreach (var symbolAndTrades in symbolAndTradesList)
             {
@@ -1135,7 +1135,7 @@ public class Broker : IDisposable
         if (!subscribed)
         {
             //get all snapshots (not used as quotes are subscribed)
-            await UpdateStocksWithSnapshots().ConfigureAwait(false);
+            await UpdateStocksWithSnapshots();
         }
         //update and raise event for GUI
         GenerateStockUpdatedEvent();
@@ -1470,10 +1470,10 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdateEnviromentData()
     {
-        await UpdateAccounts().ConfigureAwait(false);
-        await UpdateOpenOrders().ConfigureAwait(false);
-        await UpdateClosedOrders().ConfigureAwait(false);
-        await UpdatePositions().ConfigureAwait(false);
+        await UpdateAccounts();
+        await UpdateOpenOrders();
+        await UpdateClosedOrders();
+        await UpdatePositions();
     }
 
     /// <summary>
@@ -1488,14 +1488,14 @@ public class Broker : IDisposable
         List<string> symbols = new();
 
         //all positions
-        var positions = await ListPositions().ConfigureAwait(false);
+        var positions = await ListPositions();
         foreach (var position in positions.ToList())
         {
             symbols.Add(position.Symbol);
         }
 
         //all open orders
-        var openOrders = await OpenOrders().ConfigureAwait(false);
+        var openOrders = await OpenOrders();
         foreach (var order in openOrders.ToList())
         {
             symbols.Add(order.Symbol);
@@ -1505,14 +1505,14 @@ public class Broker : IDisposable
         var symbolList = new HashSet<string>(symbols);
         foreach (var symbol in symbolList)
         {
-            var asset = await GetAsset(symbol).ConfigureAwait(false);
+            var asset = await GetAsset(symbol);
 
             if (asset != null)
             {
                 try
                 {
                     //get snapshots
-                    var ss = await GetSnapshot(symbol).ConfigureAwait(false);
+                    var ss = await GetSnapshot(symbol);
 
                     if (ss != null)
                     {

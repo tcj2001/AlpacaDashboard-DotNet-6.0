@@ -113,7 +113,7 @@ internal class MeanReversion : IBot
     {
         //create a log for this bot and symbol
         var log = new LoggerConfiguration()
-                  .WriteTo.File("Logs\\"+this.GetType()+"_"+stock?.Asset?.Symbol+".log", rollingInterval: RollingInterval.Day)
+                  .WriteTo.File("Logs\\" + Broker.Environment.ToString() + "_" + this.GetType()+"_"+stock?.Asset?.Symbol+".log", rollingInterval: RollingInterval.Day)
                   .CreateLogger();
 
         log.Information($"Starting {this.GetType()} Bot for {stock?.Asset?.Symbol}");
@@ -140,7 +140,7 @@ internal class MeanReversion : IBot
                 //your main bot logic here
                 /////////////////////////////////////////////////////////////////////////////////
 
-                updatedStock = await MeanReversionLogic(log, scale, closingPrices, updatedStock).ConfigureAwait(false);
+                updatedStock = await Logic(log, scale, closingPrices, updatedStock).ConfigureAwait(false);
 
                 /////////////////////////////////////////////////////////////////////////////////
 
@@ -174,7 +174,7 @@ internal class MeanReversion : IBot
     /// <param name="lastTradeOpen"></param>
     /// <param name="lastTradeId"></param>
     /// <returns></returns>
-    private async Task<IStock?> MeanReversionLogic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
+    private async Task<IStock?> Logic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
     {
         //wait till minute bar is populated
         if (updatedStock?.MinuteBar == null)
@@ -189,8 +189,8 @@ internal class MeanReversion : IBot
         var symbol = updatedStock?.Asset?.Symbol;
 
         //last trade open and its id
-        bool lastTradeOpen = updatedStock?.OpenOrders.Count > 0 ? true : false;
-        Guid? lastTradeId = updatedStock?.OpenOrders.LastOrDefault();
+        bool lastTradeOpen = updatedStock?.OpenOrders.Count != 0 ? true : false;
+        IOrder? lastOrder = updatedStock?.OpenOrders.LastOrDefault();
 
         //calculate average price
         var avg = closingPrices.Average();
@@ -206,10 +206,10 @@ internal class MeanReversion : IBot
         var assetClass = updatedStock?.Asset?.Class;
 
         //if there is open order and and we have a tradeupdate event
-        if (lastTradeOpen && lastTradeId != null)
+        if (lastTradeOpen && lastOrder != null)
         {
-            var res = await Broker.DeleteOpenOrder((Guid)lastTradeId);
-            log.Information($"Closing Open Order {lastTradeId} of Qty {updatedStock?.TradeUpdate?.Order.Quantity}");
+            var res = await Broker.DeleteOpenOrder((Guid)lastOrder.OrderId);
+            log.Information($"Closing Open Order {lastOrder.OrderId} of Qty {updatedStock?.TradeUpdate?.Order.Quantity}");
         }
 
         // Make sure we know how much we should spend on our position.

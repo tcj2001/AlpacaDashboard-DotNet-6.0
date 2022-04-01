@@ -793,6 +793,10 @@ public partial class AlpacaDashboard : Form
                         {
                             if (item.SubItems[4].Text != stock.Position.Quantity.ToString()) item.SubItems[4].Text = stock.Position.Quantity.ToString();
                         }
+                        else
+                        {
+                            if (item.SubItems[4].Text != "0") item.SubItems[4].Text = "0";
+                        }
 
                         if (stock.Trade != null)
                         {

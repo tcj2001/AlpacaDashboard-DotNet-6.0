@@ -57,9 +57,9 @@ internal class TakeProfitOrLoss : IBot
     private int _averageBars = 20;
     public int AverageBars { get => _averageBars; set => _averageBars = value; }
 
-    //Scale
-    private int _scale = 1;
-    public int Scale { get => _scale; set => _scale = value; }
+    //Qty
+    private int _qtyToBuy = 1;
+    public int QtyToBuy { get => _qtyToBuy; set => _qtyToBuy = value; }
 
     //profit percentage
     private decimal _profitPercent = 0.5M;
@@ -97,7 +97,7 @@ internal class TakeProfitOrLoss : IBot
         //Run you bot logic until cancelled
         if (stock != null)
         {
-            await Task.Run(() => BotStartCall(stock, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), AverageBars, Scale, source.Token), source.Token).ConfigureAwait(false);
+            await Task.Run(() => BotStartCall(stock, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), AverageBars, source.Token), source.Token).ConfigureAwait(false);
         }
 
         return source;
@@ -118,11 +118,11 @@ internal class TakeProfitOrLoss : IBot
     /// </summary>
     /// <param name="barTimeFrameCount"></param>
     /// <param name="token"></param>
-    private async void BotStartCall(IStock stock, BarTimeFrame barTimeFrame, int averageBars, int scale, CancellationToken token)
+    private async void BotStartCall(IStock stock, BarTimeFrame barTimeFrame, int averageBars, CancellationToken token)
     {
         //create a log for this bot and symbol
         var log = new LoggerConfiguration()
-                  .WriteTo.File("Logs\\"+this.GetType()+"_"+stock?.Asset?.Symbol+".log", rollingInterval: RollingInterval.Day)
+                  .WriteTo.File("Logs\\" + Broker.Environment.ToString() + "_" + this.GetType()+"_"+stock?.Asset?.Symbol+".log", rollingInterval: RollingInterval.Day)
                   .CreateLogger();
 
         log.Information($"Starting {this.GetType()} Bot for {stock?.Asset?.Symbol}");
@@ -149,7 +149,7 @@ internal class TakeProfitOrLoss : IBot
                 //your main bot logic here
                 /////////////////////////////////////////////////////////////////////////////////
 
-                updatedStock = await TakeProfitOrLossLogic(log, scale, closingPrices, updatedStock).ConfigureAwait(false);
+                updatedStock = await Logic(log, closingPrices, updatedStock).ConfigureAwait(false);
 
                 /////////////////////////////////////////////////////////////////////////////////
 
@@ -183,17 +183,18 @@ internal class TakeProfitOrLoss : IBot
     /// <param name="lastTradeOpen"></param>
     /// <param name="lastTradeId"></param>
     /// <returns></returns>
-    private async Task<IStock?> TakeProfitOrLossLogic(Serilog.Core.Logger log, int scale,  List<decimal?> closingPrices, IStock? updatedStock)
+    private async Task<IStock?> Logic(Serilog.Core.Logger log,  List<decimal?> closingPrices, IStock? updatedStock)
     {
-        //wait till minute bar is populated
-        if (updatedStock?.MinuteBar == null)
-            return updatedStock;
-
         //close price
         var close = updatedStock?.Trade?.Price ?? 0M;
         if (close == 0)
             return updatedStock;
-        
+
+        var price = 0M;
+        price = updatedStock?.Quote?.AskPrice ?? 0M;
+        if (price == 0)
+            return updatedStock;
+
         //symbol
         var symbol = updatedStock?.Asset?.Symbol;
         
@@ -204,8 +205,8 @@ internal class TakeProfitOrLoss : IBot
         takeLoss = (decimal)(close - close * LossPercent / 100);
 
         //last trade open and its id
-        bool lastTradeOpen = updatedStock?.OpenOrders.Count > 0 ? true : false;
-        Guid? lastTradeId = updatedStock?.OpenOrders.LastOrDefault();
+        bool lastTradeOpen = updatedStock?.OpenOrders.Count != 0 ? true : false;
+        IOrder? lastOrder = updatedStock?.OpenOrders.LastOrDefault();
 
         //current position
         var position = updatedStock?.Position == null ? 0 : updatedStock?.Position.Quantity;
@@ -237,7 +238,14 @@ internal class TakeProfitOrLoss : IBot
         var amountToLong = buyingPower;
 
         //calculate quantity
-        decimal calculatedQty = CalculateQuantity(assetClass, amountToLong, close);
+        var calculatedQty = 0M;
+        OrderType preferedOrderType = OrderType.Limit;
+        TimeInForce timeInForce = TimeInForce.Gtc;
+        bool extendedHours = false;
+        if (QtyToBuy * price < buyingPower)
+            calculatedQty = QtyToBuy;
+        else
+            (calculatedQty, preferedOrderType, timeInForce, extendedHours) = await CalculateQuantity(assetClass, buyingPower, price, preferedOrderType);
         if (calculatedQty == 0)
             return updatedStock;
 
@@ -247,7 +255,7 @@ internal class TakeProfitOrLoss : IBot
             {
                 if (calculatedQty > 0 && position == 0)
                 {
-                    (IOrder? order, string? message) = await Broker.SubmitBracketOrder(GetType().ToString(), OrderSide.Buy, OrderType.Limit, TimeInForce.Gtc, false,
+                    (IOrder? order, string? message) = await Broker.SubmitBracketOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
                     asset, OrderQuantity.Fractional(calculatedQty), close, (decimal)takeProfit, takeLoss, takeLoss).ConfigureAwait(false);
 
                     log.Information($"{message}");
@@ -255,29 +263,56 @@ internal class TakeProfitOrLoss : IBot
             }
             else
             {
-                if (lastTradeId != null && position == 0)
+                if (lastOrder != null && position == 0)
                 {
-                    (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder(GetType().ToString(), (Guid)lastTradeId, close, null);
-                    lastTradeId = order?.OrderId;
+                    (IOrder? order, string? message) =  await Broker.ReplaceOpenOrder(GetType().ToString(), (Guid)lastOrder.OrderId, close, null);
                     log.Information($"{message}");
                 }
             }
         }
         return updatedStock;
     }
-
-    private static decimal CalculateQuantity(AssetClass? assetClass, decimal amount, decimal close)
+    /// <summary>
+    /// UsEquity  if calculated qty is fraction change order type to market else whatever is passed
+    /// </summary>
+    /// <param name="assetClass"></param>
+    /// <param name="amount"></param>
+    /// <param name="close"></param>
+    /// <param name="inputOrderType"></param>
+    /// <returns></returns>
+    private async Task<(decimal, OrderType, TimeInForce, bool)> CalculateQuantity(AssetClass? assetClass, decimal amount, decimal close, OrderType inputOrderType)
     {
+
+        bool extendedHours = false;
         var calculatedQty = 0M;
+        calculatedQty = Math.Round(amount / close, 2);
+        OrderType orderType = inputOrderType;
+        TimeInForce timeInForce = TimeInForce.Gtc;
         if (assetClass == AssetClass.UsEquity)
         {
-            calculatedQty = (Int64)(amount / close);
+            bool marketOpen = await Broker.IsMarketOpen() ?? false;
+            if (!marketOpen)
+            {
+                orderType = OrderType.Limit;
+                if (calculatedQty % 1 != 0)
+                {
+                    calculatedQty = (Int64)calculatedQty;
+                }
+                extendedHours = true;
+                timeInForce = TimeInForce.Day;
+            }
+            else
+            {
+                calculatedQty = amount / close;
+                if (calculatedQty % 1 != 0)
+                {
+                    orderType = OrderType.Market;
+                    extendedHours = false;
+                    timeInForce = TimeInForce.Day;
+                }
+            }
         }
-        if (assetClass == AssetClass.Crypto)
-        {
-            calculatedQty = amount / close;
-        }
-
-        return Math.Round(calculatedQty, 2);
+        return (calculatedQty, orderType, timeInForce, extendedHours);
     }
+
 }
