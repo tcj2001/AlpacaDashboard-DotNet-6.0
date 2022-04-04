@@ -135,14 +135,13 @@ internal class DCA : IBot
             TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
             DateTime easternTime = TimeZoneInfo.ConvertTimeFromUtc(timeUtc, easternZone);
 
-            //get historical bars
-            var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
-               
-            closingPrices = bars.Select(x => x?.Close).ToList();
-
             //do while its not ended
             while (!token.IsCancellationRequested)
             {
+                //get historical bars
+                var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
+                closingPrices = bars.Select(x => x?.Close).ToList();
+
                 //get stock object of the symbol
                 updatedStock = Broker.StockObjects.GetStock(stock?.Asset?.Symbol);
 
@@ -152,12 +151,12 @@ internal class DCA : IBot
                 updatedStock = await Logic(log, closingPrices, updatedStock).ConfigureAwait(false);
 
                 /////////////////////////////////////////////////////////////////////////////////
-
-                //closingPrices.Add(updatedStock?.MinuteBar?.Close);
-                //if (closingPrices.Count > BarTimeFrameCount)
-                //{
-                //    closingPrices.RemoveAt(0);
-                //}
+                
+                closingPrices.Add(updatedStock?.MinuteBar?.Close);
+                if (closingPrices.Count > AverageBars)
+                {
+                    closingPrices.RemoveAt(0);
+                }
 
                 var looptime = 0;
                 if (barTimeFrame.Unit == BarTimeFrameUnit.Minute) looptime = barTimeFrame.Value;
@@ -242,7 +241,7 @@ internal class DCA : IBot
 
         //calculate quantity
         var calculatedQty = 0M;
-        OrderType preferedOrderType = OrderType.Limit;
+        OrderType preferedOrderType = OrderType.Market;
         TimeInForce timeInForce = TimeInForce.Gtc;
         bool extendedHours = false;
         if (QtyToBuy * askPrice < buyingPower)
@@ -260,25 +259,19 @@ internal class DCA : IBot
                 {
                     if (position == 0)
                     {
-                        if (diff < 0)
+                        (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
+                                asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
+                                null, null).ConfigureAwait(false);
+                        log.Information($"Initial Purchase : {message}");
+                    }
+                    else
+                    {
+                        if (currentProfitOrRLossPerc <= 0 - 1 * DCAPerc)
                         {
                             (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
                                     asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
                                     null, null).ConfigureAwait(false);
-                            log.Information($"Initial Purchase : {message}");
-                        }
-                    }
-                    else
-                    {
-                        if (diff > 0)
-                        {
-                            if (currentProfitOrRLossPerc <= 0 - 1 * DCAPerc)
-                            {
-                                (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
-                                        asset, OrderQuantity.Fractional(calculatedQty), close, null, null, null,
-                                        null, null).ConfigureAwait(false);
-                                log.Information($"Dollar cost Averageing Purchase : {message}");
-                            }
+                            log.Information($"Dollar cost Averageing Purchase : {message}");
                         }
                     }
                 }
@@ -292,19 +285,6 @@ internal class DCA : IBot
                                 asset, OrderQuantity.Fractional((decimal)position), close, null, null, null,
                                 null, null).ConfigureAwait(false);
                         log.Information($"Sell With profit : {message}");
-                    }
-                }
-            }
-            else
-            {
-                if (lastOrder?.OrderId != null)
-                {
-                    if (diff > 0)
-                    {
-                        var orderId = lastOrder != null ? lastOrder.OrderId : new Guid();
-                        //var price = lastOrder?.OrderSide == OrderSide.Buy ? askPrice : bidPrice;
-                        (IOrder? order, string? message) = await Broker.ReplaceOpenOrder(GetType().ToString(), orderId, close, null);
-                        log.Information($"{message} with {order?.OrderId}");
                     }
                 }
             }
