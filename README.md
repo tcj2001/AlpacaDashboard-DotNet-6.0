@@ -71,6 +71,10 @@ A **Log** is created for the Dashboard in the Logs folder, also individual **log
 
 All trades are recorded in a **SQLite database** for price analysis like profit/loss by Date/Bot/Symbol etc.  
 
+Setting for each Scanners are stored in the database, so next time you load the dashboard those setting will be restored.  
+
+Setting for each Bot at Asset level is also stored in the database, so next time you load the dashboard setting for each Bots at Asset level will be restored.  
+
 This Dashboard should also work for non-subscribed users by changing the subscribed setting to false in the appsetting.json file.  
 
 Provide your feedback to improve the functionality of Alpaca Dashboard, **write new scanner and bots** and add to project.    
