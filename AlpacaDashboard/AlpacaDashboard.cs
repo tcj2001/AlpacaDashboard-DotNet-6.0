@@ -2584,9 +2584,6 @@ public partial class AlpacaDashboard : Form
                             DisplayControlsForBot2(dr, tableLayoutPanel, _type, p);
                     }
                 }
-
-                //update listview of bots
-                LoadBotListView(instance, lv, instance.GetBotList());
             }
         }
         catch { }
