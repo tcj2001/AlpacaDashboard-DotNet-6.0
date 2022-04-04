@@ -135,14 +135,13 @@ internal class Scalper : IBot
             //close all open orders
             await Broker.DeleteOpenOrders(stock?.Asset?.Symbol);
 
-            //get historical bars
-            var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
-               
-            closingPrices = bars.Select(x => x?.Close).ToList();
-
             //do while its not ended
             while (!token.IsCancellationRequested)
             {
+                //get historical bars
+                var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
+                closingPrices = bars.Select(x => x?.Close).ToList();
+
                 //get stock object of the symbol
                 updatedStock = Broker.StockObjects.GetStock(stock?.Asset?.Symbol);
 
@@ -153,11 +152,11 @@ internal class Scalper : IBot
 
                 /////////////////////////////////////////////////////////////////////////////////
 
-                //closingPrices.Add(updatedStock?.MinuteBar?.Close);
-                //if (closingPrices.Count > BarTimeFrameCount)
-                //{
-                //    closingPrices.RemoveAt(0);
-                //}
+                closingPrices.Add(updatedStock?.MinuteBar?.Close);
+                if (closingPrices.Count > AverageBars)
+                {
+                    closingPrices.RemoveAt(0);
+                }
 
                 var looptime = 0;
                 if (barTimeFrame.Unit == BarTimeFrameUnit.Minute) looptime = barTimeFrame.Value;

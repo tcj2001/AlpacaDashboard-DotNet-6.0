@@ -22,6 +22,7 @@ public partial class AlpacaDashboard : Form
     private TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
     private CancellationToken token;
     private TradingEnvironment Environment { get; set; }
+    private SQLiteConnection Conn { get; set; }
     #endregion
 
     #region constructor
@@ -41,6 +42,9 @@ public partial class AlpacaDashboard : Form
         _connections = connections;
 
         token = new CancellationToken();
+
+        Conn = new SQLiteConnection(_connections.Value.ConnectionString);
+        Conn.Open();
 
         InitializeComponent();
 
@@ -1963,6 +1967,19 @@ public partial class AlpacaDashboard : Form
             if (instance != null)
             {
                 Type _type = instance.GetType();
+
+                //delete scanner from database
+                SQLiteCommand deletSQL = new SQLiteCommand($"Delete from {instance.Broker.Environment.ToString()}Scanner  Where scanner = ?", Conn);
+                deletSQL.Parameters.Add(new SQLiteParameter("scanner", _type.Name));
+                try
+                {
+                    deletSQL.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation($"{Environment}  {ex.Message}");
+                }
+
                 foreach (PropertyInfo p in _type.GetProperties())
                 {
                     if (p.PropertyType == typeof(int) ||
@@ -2026,6 +2043,7 @@ public partial class AlpacaDashboard : Form
 
                 //update UI input criteria for scanner
                 Type _type = instance.GetType();
+
                 foreach (PropertyInfo p in _type.GetProperties())
                 {
                     if ((p.PropertyType == typeof(int) ||
@@ -2035,7 +2053,14 @@ public partial class AlpacaDashboard : Form
                          p.PropertyType == typeof(BarTimeFrameUnit)
                      ))
                     {
-                        DisplayControlsForScanner(instance, tableLayoutPanel, _type, p);
+                        //select scanner parameters from database
+                        SQLiteCommand readSQL = new SQLiteCommand($"select * from {instance.Broker.Environment.ToString()}Scanner where scanner = ? and name = ?", Conn);
+                        readSQL.Parameters.Add(new SQLiteParameter("scanner", _type.Name));
+                        readSQL.Parameters.Add(new SQLiteParameter("name", _type.Name + p.Name));
+                        SQLiteDataReader dr = readSQL.ExecuteReader();
+                        dr.Read();
+                        if (dr.HasRows)
+                            DisplayControlsForScanner2(dr, tableLayoutPanel, _type, p);
                     }
                 }
 
@@ -2046,7 +2071,7 @@ public partial class AlpacaDashboard : Form
         }
         catch { }
     }
-    private static void DisplayControlsForScanner(IScanner instance, TableLayoutPanel tableLayoutPanel, Type _type, PropertyInfo p)
+    private void DisplayControlsForScanner(IScanner instance, TableLayoutPanel tableLayoutPanel, Type _type, PropertyInfo p)
     {
         if (p.PropertyType == typeof(decimal))
         {
@@ -2073,32 +2098,82 @@ public partial class AlpacaDashboard : Form
             cb.Text = p.GetValue(instance)?.ToString();
         }
     }
-    private static void SetValuesOfControlsforScanner(IScanner instance, Control.ControlCollection tfcc, Type _type, PropertyInfo p)
+
+    private void DisplayControlsForScanner2(SQLiteDataReader dr, TableLayoutPanel tableLayoutPanel, Type _type, PropertyInfo p)
     {
+        if (p.PropertyType == typeof(decimal))
+        {
+            var nm = "textBox" + _type.Name + p.Name;
+            TextBox tb = (TextBox)tableLayoutPanel.Controls[nm];
+            tb.Text = Convert.ToString(dr[3]);
+        }
+        else if (p.PropertyType == typeof(int))
+        {
+            var nm = "textBox" + _type.Name + p.Name;
+            TextBox tb = (TextBox)tableLayoutPanel.Controls[nm];
+            tb.Text = Convert.ToString(dr[3]);
+        }
+        else if (p.PropertyType == typeof(DateTime))
+        {
+            var nm = "textBox" + _type.Name + p.Name;
+            TextBox tb = (TextBox)tableLayoutPanel.Controls[nm];
+            tb.Text = Convert.ToString(dr[3]);
+        }
+        else if (p.PropertyType == typeof(BarTimeFrameUnit))
+        {
+            var nm = "comboBox" + _type.Name + p.Name;
+            ComboBox cb = (ComboBox)tableLayoutPanel.Controls[nm];
+            cb.Text = Convert.ToString(dr[3]);
+        }
+    }
+
+    private void SetValuesOfControlsforScanner(IScanner instance, Control.ControlCollection tfcc, Type _type, PropertyInfo p)
+    {
+        //insert scanner parameters to database
+        SQLiteCommand insertSQL = new SQLiteCommand($"Insert into {instance.Broker.Environment.ToString()}Scanner (scanner, name, type, value) VALUES (?,?,?,?)", Conn);
+        insertSQL.Parameters.Add(new SQLiteParameter("scanner", _type.Name));
+        insertSQL.Parameters.Add(new SQLiteParameter("name", _type.Name + p.Name));
+        insertSQL.Parameters.Add(new SQLiteParameter("type", p.PropertyType));
+
         if (p.PropertyType == typeof(string))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, ctl.Text);
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(decimal))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, Convert.ToDecimal(ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(int))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, Convert.ToInt32(ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(DateTime))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, Convert.ToDateTime(ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(BarTimeFrameUnit))
         {
             var ctl = tfcc["comboBox" + _type.Name + p.Name];
             p.SetValue(instance, Enum.Parse(typeof(BarTimeFrameUnit), ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
+        }
+        
+        //insert
+        try
+        {
+            insertSQL.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation($"{Environment}  {ex.Message}");
         }
     }
     private static void GenerateControlForScanner(Type _type, IScanner instance, TableLayoutPanel tableLayoutPanel, PropertyInfo p)
@@ -2263,22 +2338,24 @@ public partial class AlpacaDashboard : Form
                 //sell or buy based position
                 var symbol = focusedItem.SubItems[0].Text;
 
-                //show context menu 
-                if (e.Button == MouseButtons.Right)
+                if (focusedItem != null && focusedItem.Bounds.Contains(e.Location))
                 {
-                    if (focusedItem != null && focusedItem.Bounds.Contains(e.Location))
-                    {
-                        Dictionary<string, IBot> bots = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
-                        var instance = bots[Environment.ToString()];
-                        IAsset? asset = null;
-                        if (Environment == TradingEnvironment.Live)
-                            asset = await LiveBroker.GetAsset(focusedItem.SubItems[0].Text);
-                        if (Environment == TradingEnvironment.Paper)
-                            asset = await PaperBroker.GetAsset(focusedItem.SubItems[0].Text);
-                        instance.SelectedAsset = asset;
-                        contextMenuStripBot.Tag = instance;
+                    Dictionary<string, IBot> bots = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
+                    var instance = bots[Environment.ToString()];
+                    IAsset? asset = null;
+                    if (Environment == TradingEnvironment.Live)
+                        asset = await LiveBroker.GetAsset(focusedItem.SubItems[0].Text);
+                    if (Environment == TradingEnvironment.Paper)
+                        asset = await PaperBroker.GetAsset(focusedItem.SubItems[0].Text);
+                    instance.SelectedAsset = asset;
+                    contextMenuStripBot.Tag = instance;
 
-                        if (asset != null)
+                    if (asset != null)
+                    {
+                        LoadBotDetails2(Environment, asset.Symbol);
+
+                        //show context menu 
+                        if (e.Button == MouseButtons.Right)
                         {
                             CancellationTokenSource? cts = null;
                             if (instance.ActiveAssets != null)
@@ -2297,9 +2374,8 @@ public partial class AlpacaDashboard : Form
                                 contextMenuStripBot.Items[1].Enabled = true;
                                 contextMenuStripBot.Items[2].Enabled = true;
                             }
+                            contextMenuStripBot.Show(Cursor.Position);
                         }
-
-                        contextMenuStripBot.Show(Cursor.Position);
                     }
                 }
             }
@@ -2343,6 +2419,20 @@ public partial class AlpacaDashboard : Form
         if (instance != null)
         {
             Type _type = instance.GetType();
+
+            //delete bot/symbol from database
+            SQLiteCommand deletSQL = new SQLiteCommand($"Delete from {instance.Broker.Environment.ToString()}Bot  Where bot = ? and symbol = ?", Conn);
+            deletSQL.Parameters.Add(new SQLiteParameter("bot", _type.Name));
+            deletSQL.Parameters.Add(new SQLiteParameter("symbol", botListView.FocusedItem.SubItems[0].Text));
+            try
+            {
+                deletSQL.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation($"{Environment}  {ex.Message}");
+            }
+
             foreach (PropertyInfo p in _type.GetProperties())
             {
                 if (p.PropertyType == typeof(int) ||
@@ -2352,7 +2442,7 @@ public partial class AlpacaDashboard : Form
                         p.PropertyType == typeof(BarTimeFrameUnit)
                 )
                 {
-                    SetValuesOfControlsforBot(instance, tfcc, _type, p);
+                    SetValuesOfControlsforBot(instance, botListView.FocusedItem.SubItems[0].Text, tfcc, _type, p);
                 }
             }
 
@@ -2440,7 +2530,15 @@ public partial class AlpacaDashboard : Form
                          p.PropertyType == typeof(BarTimeFrameUnit)
                      ))
                     {
-                        DisplayControlsForBot(instance, tableLayoutPanel, _type, p);
+                        //select scanner parameters from database
+                        SQLiteCommand readSQL = new SQLiteCommand($"select * from {instance.Broker.Environment.ToString()}Bot where bot = ? and symbol = ? and name = ?", Conn);
+                        readSQL.Parameters.Add(new SQLiteParameter("bot", _type.Name));
+                        readSQL.Parameters.Add(new SQLiteParameter("symbol", _type.Name));
+                        readSQL.Parameters.Add(new SQLiteParameter("name", _type.Name + p.Name));
+                        SQLiteDataReader dr = readSQL.ExecuteReader();
+                        dr.Read();
+                        if (dr.HasRows)
+                            DisplayControlsForBot(instance, tableLayoutPanel, _type, p);
                     }
                 }
 
@@ -2451,7 +2549,50 @@ public partial class AlpacaDashboard : Form
         catch { }
     }
 
-    private static void DisplayControlsForBot(IBot instance, TableLayoutPanel tableLayoutPanel, Type _type, PropertyInfo p)
+    private void LoadBotDetails2(TradingEnvironment env, string symbol)
+    {
+        try
+        {
+            if (Environment == env)
+            {
+                var instances = (Dictionary<string, IBot>)tabControlBots.SelectedTab.Tag;
+                var instance = instances[env.ToString()];
+
+                var sc = (SplitContainer)instance.UiContainer;
+                var lv = (ListView)sc.Panel1.Controls[0];
+                var tableLayoutPanel = (TableLayoutPanel)sc.Panel2.Controls[0];
+
+                //update UI input criteria for scanner
+                Type _type = instance.GetType();
+                foreach (PropertyInfo p in _type.GetProperties())
+                {
+                    if ((p.PropertyType == typeof(int) ||
+                         p.PropertyType == typeof(decimal) ||
+                         p.PropertyType == typeof(DateTime) ||
+                         p.PropertyType == typeof(BarTimeFrameUnit) ||
+                         p.PropertyType == typeof(BarTimeFrameUnit)
+                     ))
+                    {
+                        //select scanner parameters from database
+                        SQLiteCommand readSQL = new SQLiteCommand($"select * from {instance.Broker.Environment.ToString()}Bot where bot = ? and symbol = ? and name = ?", Conn);
+                        readSQL.Parameters.Add(new SQLiteParameter("bot", _type.Name));
+                        readSQL.Parameters.Add(new SQLiteParameter("symbol", symbol));
+                        readSQL.Parameters.Add(new SQLiteParameter("name", _type.Name + p.Name));
+                        SQLiteDataReader dr = readSQL.ExecuteReader();
+                        dr.Read();
+                        if (dr.HasRows)
+                            DisplayControlsForBot2(dr, tableLayoutPanel, _type, p);
+                    }
+                }
+
+                //update listview of bots
+                LoadBotListView(instance, lv, instance.GetBotList());
+            }
+        }
+        catch { }
+    }
+
+    private void DisplayControlsForBot(IBot instance, TableLayoutPanel tableLayoutPanel, Type _type, PropertyInfo p)
     {
         if (p.PropertyType == typeof(decimal))
         {
@@ -2479,32 +2620,82 @@ public partial class AlpacaDashboard : Form
         }
     }
 
-    private static void SetValuesOfControlsforBot(IBot instance, Control.ControlCollection tfcc, Type _type, PropertyInfo p)
+    private void DisplayControlsForBot2(SQLiteDataReader dr, TableLayoutPanel tableLayoutPanel, Type _type, PropertyInfo p)
     {
+        if (p.PropertyType == typeof(decimal))
+        {
+            var nm = "textBox" + _type.Name + p.Name;
+            TextBox tb = (TextBox)tableLayoutPanel.Controls[nm];
+            tb.Text = Convert.ToString(dr[4]);
+        }
+        else if (p.PropertyType == typeof(int))
+        {
+            var nm = "textBox" + _type.Name + p.Name;
+            TextBox tb = (TextBox)tableLayoutPanel.Controls[nm];
+            tb.Text = Convert.ToString(dr[4]);
+        }
+        else if (p.PropertyType == typeof(DateTime))
+        {
+            var nm = "textBox" + _type.Name + p.Name;
+            TextBox tb = (TextBox)tableLayoutPanel.Controls[nm];
+            tb.Text = Convert.ToString(dr[4]);
+        }
+        else if (p.PropertyType == typeof(BarTimeFrameUnit))
+        {
+            var nm = "comboBox" + _type.Name + p.Name;
+            ComboBox cb = (ComboBox)tableLayoutPanel.Controls[nm];
+            cb.Text = Convert.ToString(dr[4]);
+        }
+    }
+
+    private void SetValuesOfControlsforBot(IBot instance, string symbol,  Control.ControlCollection tfcc, Type _type, PropertyInfo p)
+    {
+        //insert bot parameters to database
+        SQLiteCommand insertSQL = new SQLiteCommand($"Insert into {instance.Broker.Environment.ToString()}Bot (bot, symbol, name, type, value) VALUES (?,?,?,?,?)", Conn);
+        insertSQL.Parameters.Add(new SQLiteParameter("bot", _type.Name));
+        insertSQL.Parameters.Add(new SQLiteParameter("symbol", symbol));
+        insertSQL.Parameters.Add(new SQLiteParameter("name", _type.Name + p.Name));
+        insertSQL.Parameters.Add(new SQLiteParameter("type", p.PropertyType));
+
         if (p.PropertyType == typeof(string))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, ctl.Text);
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(decimal))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, Convert.ToDecimal(ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(int))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, Convert.ToInt32(ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(DateTime))
         {
             var ctl = tfcc["textBox" + _type.Name + p.Name];
             p.SetValue(instance, Convert.ToDateTime(ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
         }
         else if (p.PropertyType == typeof(BarTimeFrameUnit))
         {
             var ctl = tfcc["comboBox" + _type.Name + p.Name];
             p.SetValue(instance, Enum.Parse(typeof(BarTimeFrameUnit), ctl.Text));
+            insertSQL.Parameters.Add(new SQLiteParameter("value", ctl.Text));
+        }
+
+        //insert
+        try
+        {
+            insertSQL.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation($"{Environment}  {ex.Message}");
         }
     }
 

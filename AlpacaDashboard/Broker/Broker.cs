@@ -766,7 +766,8 @@ public class Broker : IDisposable
             }
 
             //update value
-            SQLiteCommand updateSQL2 = new SQLiteCommand($"Update {Environment.ToString()}Trades Set Value = ? Where orderId = ?", Conn);
+            SQLiteCommand updateSQL2 = new SQLiteCommand($"Update {Environment.ToString()}Trades Set averageCost = ?,Value = ? Where orderId = ?", Conn);
+            updateSQL2.Parameters.Add(new SQLiteParameter("averageCost", obj.Order.AverageFillPrice));
             updateSQL2.Parameters.Add(new SQLiteParameter("value", cost));
             updateSQL2.Parameters.Add(new SQLiteParameter("orderId", obj.Order.OrderId.ToString()));
             try
@@ -884,7 +885,7 @@ public class Broker : IDisposable
     /// <returns></returns>
     public async Task UpdateAccounts()
     {
-        var account = await GetAccountDetails().ConfigureAwait(false);
+        var account = await GetAccountDetails();
 
         AccountUpdatedEventArgs oauea = new()
         {

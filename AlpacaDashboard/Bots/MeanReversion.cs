@@ -126,14 +126,13 @@ internal class MeanReversion : IBot
             TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
             DateTime easternTime = TimeZoneInfo.ConvertTimeFromUtc(timeUtc, easternZone);
 
-            //get historical bars
-            var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
-               
-            closingPrices = bars.Select(x => x?.Close).ToList();
-
             //do while its not ended
             while (!token.IsCancellationRequested)
             {
+                //get historical bars
+                var bars = await Broker.GetHistoricalBar(stock?.Asset, barTimeFrame, averageBars, easternTime);
+                closingPrices = bars.Select(x => x?.Close).ToList();
+
                 //get stock object of the symbol
                 updatedStock = Broker.StockObjects.GetStock(stock?.Asset?.Symbol);
 
@@ -145,7 +144,7 @@ internal class MeanReversion : IBot
                 /////////////////////////////////////////////////////////////////////////////////
 
                 closingPrices.Add(updatedStock?.MinuteBar?.Close);
-                if (closingPrices.Count > BarTimeFrameCount)
+                if (closingPrices.Count > AverageBars)
                 {
                     closingPrices.RemoveAt(0);
                 }
