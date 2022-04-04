@@ -359,27 +359,27 @@ public class Broker : IDisposable
             switch (orderType)
             {
                 case OrderType.Market:
-                    message = $"Placing Market {orderSide.ToString()} of {orderQuantity.Value.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    message = $"Placing Market {orderSide.ToString()} of {orderQuantity.Value.ToString()} {asset?.Symbol} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
                     order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.Limit:
-                    message = $"Placing Limit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    message = $"Placing Limit {orderSide.ToString()} of {orderQuantity.Value.ToString()} {asset?.Symbol} @ {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
                     order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, LimitPrice = limitPrice }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.Stop:
-                    message = $"Placing Stop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopLossStopPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    message = $"Placing Stop {orderSide.ToString()} of {orderQuantity.Value.ToString()} {asset?.Symbol} @ stop price: {stopLossStopPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
                     order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, StopPrice = stopLossStopPrice }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.StopLimit:
-                    message = $"Placing StopLimit {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price {stopLossStopPrice.ToString()} and limit price {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    message = $"Placing StopLimit {orderSide.ToString()} of {orderQuantity.Value.ToString()} {asset?.Symbol} @ stop price {stopLossStopPrice.ToString()} and limit price {limitPrice.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
                     order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, StopPrice = stopLossStopPrice, LimitPrice = stopLossLimitPrice }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
                 case OrderType.TrailingStop:
-                    message = $"Placing TrailingStop {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ stop price: {stopLossStopPrice.ToString()} and trailing {trailOffsetDollars.ToString()} {trailOffsetPercentage.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+                    message = $"Placing TrailingStop {orderSide.ToString()} of {orderQuantity.Value.ToString()} {asset?.Symbol} @ stop price: {stopLossStopPrice.ToString()} and trailing {trailOffsetDollars.ToString()} {trailOffsetPercentage.ToString()} on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
                     order = await AlpacaTradingClient.PostOrderAsync(new NewOrderRequest(symbol, orderQuantity, orderSide, orderType, timeinForce) { ExtendedHours = extendedHours, StopPrice = stopLossStopPrice, TrailOffsetInDollars = trailOffsetDollars, TrailOffsetInPercent = trailOffsetPercentage }).ConfigureAwait(false);
                     message += $", OrderId : {order?.OrderId}";
                     break;
@@ -428,7 +428,7 @@ public class Broker : IDisposable
 
         try
         {
-            message = $"Placing Bracket {orderSide.ToString()} of {orderQuantity.Value.ToString()} @ {limitPrice.ToString()} with take profit @ {takeProfitLimitPrice.ToString()} and take loss @ {stopLossLimitPrice.ToString() } on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
+            message = $"Placing Bracket {orderSide.ToString()} of {orderQuantity.Value.ToString()} {asset?.Symbol} @ {limitPrice.ToString()} with take profit @ {takeProfitLimitPrice.ToString()} and take loss @ {stopLossLimitPrice.ToString() } on {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString()}, TimeInForce : {timeinForce.ToString()}, Extended Hours {extendedHours.ToString()}";
             switch (orderType)
             {
                 case OrderType.Market:

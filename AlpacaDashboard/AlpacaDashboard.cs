@@ -271,7 +271,14 @@ public partial class AlpacaDashboard : Form
                 tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F));
             }
             tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-
+            Button btn = new()
+            {
+                Name = "textBox" + _type.Name + "Set",
+                Text = "Set",
+                BackColor = Color.Gray
+            };
+            tableLayoutPanel.Controls.Add(btn);
+            btn.Click += SetButton_Click;
         }
 
         LoadBotDetails(Environment);
@@ -2219,6 +2226,47 @@ public partial class AlpacaDashboard : Form
     #endregion
 
     #region Bot methods and events handlers
+    private void SetButton_Click(object? sender, EventArgs e)
+    {
+        IBot instance = (IBot)contextMenuStripBot.Tag;
+        var sc = (SplitContainer)instance.UiContainer;
+        ListView botListView = (ListView)sc.Panel1.Controls[0];
+
+        var tfc = sc.Panel2;
+        var tfcc = tfc.Controls[0].Controls;
+
+        if (instance != null)
+        {
+            Type _type = instance.GetType();
+
+            //delete bot/symbol from database
+            SQLiteCommand deletSQL = new SQLiteCommand($"Delete from {instance.Broker.Environment.ToString()}Bot  Where bot = ? and symbol = ?", Conn);
+            deletSQL.Parameters.Add(new SQLiteParameter("bot", _type.Name));
+            deletSQL.Parameters.Add(new SQLiteParameter("symbol", botListView.FocusedItem.SubItems[0].Text));
+            try
+            {
+                deletSQL.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation($"{Environment}  {ex.Message}");
+            }
+
+            foreach (PropertyInfo p in _type.GetProperties())
+            {
+                if (p.PropertyType == typeof(int) ||
+                        p.PropertyType == typeof(decimal) ||
+                        p.PropertyType == typeof(DateTime) ||
+                        p.PropertyType == typeof(BarTimeFrameUnit) ||
+                        p.PropertyType == typeof(BarTimeFrameUnit)
+                )
+                {
+                    SetValuesOfControlsforBot2(instance, botListView.FocusedItem.SubItems[0].Text, tfcc, _type, p);
+                }
+            }
+        }
+    }
+
 
     /// <summary>
     /// load bot list with bot symbols
@@ -2419,19 +2467,6 @@ public partial class AlpacaDashboard : Form
         if (instance != null)
         {
             Type _type = instance.GetType();
-
-            //delete bot/symbol from database
-            SQLiteCommand deletSQL = new SQLiteCommand($"Delete from {instance.Broker.Environment.ToString()}Bot  Where bot = ? and symbol = ?", Conn);
-            deletSQL.Parameters.Add(new SQLiteParameter("bot", _type.Name));
-            deletSQL.Parameters.Add(new SQLiteParameter("symbol", botListView.FocusedItem.SubItems[0].Text));
-            try
-            {
-                deletSQL.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogInformation($"{Environment}  {ex.Message}");
-            }
 
             foreach (PropertyInfo p in _type.GetProperties())
             {
@@ -2647,6 +2682,34 @@ public partial class AlpacaDashboard : Form
 
     private void SetValuesOfControlsforBot(IBot instance, string symbol,  Control.ControlCollection tfcc, Type _type, PropertyInfo p)
     {
+        if (p.PropertyType == typeof(string))
+        {
+            var ctl = tfcc["textBox" + _type.Name + p.Name];
+            p.SetValue(instance, ctl.Text);
+        }
+        else if (p.PropertyType == typeof(decimal))
+        {
+            var ctl = tfcc["textBox" + _type.Name + p.Name];
+            p.SetValue(instance, Convert.ToDecimal(ctl.Text));
+        }
+        else if (p.PropertyType == typeof(int))
+        {
+            var ctl = tfcc["textBox" + _type.Name + p.Name];
+            p.SetValue(instance, Convert.ToInt32(ctl.Text));
+        }
+        else if (p.PropertyType == typeof(DateTime))
+        {
+            var ctl = tfcc["textBox" + _type.Name + p.Name];
+            p.SetValue(instance, Convert.ToDateTime(ctl.Text));
+        }
+        else if (p.PropertyType == typeof(BarTimeFrameUnit))
+        {
+            var ctl = tfcc["comboBox" + _type.Name + p.Name];
+            p.SetValue(instance, Enum.Parse(typeof(BarTimeFrameUnit), ctl.Text));
+        }
+    }
+    private void SetValuesOfControlsforBot2(IBot instance, string symbol, Control.ControlCollection tfcc, Type _type, PropertyInfo p)
+    {
         //insert bot parameters to database
         SQLiteCommand insertSQL = new SQLiteCommand($"Insert into {instance.Broker.Environment.ToString()}Bot (bot, symbol, name, type, value) VALUES (?,?,?,?,?)", Conn);
         insertSQL.Parameters.Add(new SQLiteParameter("bot", _type.Name));
@@ -2695,7 +2758,6 @@ public partial class AlpacaDashboard : Form
             _logger.LogInformation($"{Environment}  {ex.Message}");
         }
     }
-
     private static void GenerateControlForBot(Type _type, IBot instance, TableLayoutPanel tableLayoutPanel, PropertyInfo p)
     {
         if (p.PropertyType == typeof(decimal))
