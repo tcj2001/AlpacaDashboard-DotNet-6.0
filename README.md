@@ -34,10 +34,10 @@ Scanner class should implement this Interface
 ![Imgur](https://i.imgur.com/PZOUj45.png)  
 
 Bots, this tab will list all the scanners classes implemented based on the IBots interface.    
-![Imgur](https://i.imgur.com/L1HRD59.png)  
+![Imgur](https://i.imgur.com/OXd6hVz.png) 
 
 Option to start, end or delete a Bot for a selected sysmbol  
-![Imgur](https://i.imgur.com/CKCOqAq.png)  
+![Imgur](https://i.imgur.com/QjvzoMP.png)
 
 Bot classes should implement this interface  
 ![Imgur](https://i.imgur.com/JjXiCMO.png)  
@@ -49,10 +49,11 @@ Currently 3 scanners are implemented.
 
 These scanner symbols are stored in the Alpaca Account as watchlist, so these scanner will get reloaded with last scanned list next time you start this dashboard.  
 
-Currently 3 Bots are implemented.  
+Currently 4 Bots are implemented.  
 1. MeanReversion:
 2. TakeProfitLoss: places a bracket order when the close is above SMA to take profit or loss at the entered percentages.  
 3. Scalper: Places a market order when close is above SMA and sells the asset as soon as you make a certain profit amount.  
+4. DCA (Dollar Cost Averaging):  This bot show the concept of implementing DCA to add position when the loss is more that a set percentage
 
 For every asset added in the dashboard, a Stock object is created which updates itself with Quote, Trades, Positions, and Orders  
 Bots make use of this Stock object to build its logic.
