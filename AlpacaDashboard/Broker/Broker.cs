@@ -526,7 +526,7 @@ public class Broker : IDisposable
             IStock? stock = StockObjects.GetStock(order.Symbol);
             if (stock != null)
             {
-                if (!stock.OpenOrders.Exists(x => x.OrderId == order.OrderId))
+                if (stock.OpenOrders.SingleOrDefault(x => x.OrderId == order.OrderId) == null)
                 {
                     stock.OpenOrders.Add(order);
                 }
@@ -759,7 +759,7 @@ public class Broker : IDisposable
 
             if (stock != null)
             {
-                if (stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
+                if (stock.OpenOrders.SingleOrDefault(x => x.OrderId == obj.Order.OrderId) != null)
                 {
                     stock.OpenOrders.RemoveAll(x => x.OrderId == obj.Order.OrderId);
                 }
@@ -797,7 +797,7 @@ public class Broker : IDisposable
         {
             if (stock != null)
             {
-                if (!stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
+                if (stock.OpenOrders.SingleOrDefault(x => x.OrderId == obj.Order.OrderId) == null)
                 {
                     stock.OpenOrders.Add(obj.Order);
                 }
@@ -810,7 +810,7 @@ public class Broker : IDisposable
         {
             if (stock != null)
             {
-                if (stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
+                if (stock.OpenOrders.SingleOrDefault(x => x.OrderId == obj.Order.OrderId) != null)
                 {
                     stock.OpenOrders.RemoveAll(x => x.OrderId == obj.Order.OrderId);
                 }
@@ -822,7 +822,7 @@ public class Broker : IDisposable
         {
             if (stock != null)
             {
-                if (stock.OpenOrders.Exists(x => x.OrderId == obj.Order.OrderId))
+                if (stock.OpenOrders.SingleOrDefault(x => x.OrderId == obj.Order.OrderId) != null)
                 {
                     stock.OpenOrders.RemoveAll(x => x.OrderId == obj.Order.OrderId);
                 }
@@ -1019,7 +1019,7 @@ public class Broker : IDisposable
             IStock? stock = StockObjects.GetStock(ord.Symbol);
             if (stock != null) 
             {
-                if (!stock.OpenOrders.Exists(x => x.OrderId == ord.OrderId))
+                if (stock.OpenOrders.SingleOrDefault(x => x.OrderId == ord.OrderId) == null)
                 {
                     stock.OpenOrders.Add(ord);
                 }

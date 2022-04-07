@@ -241,17 +241,19 @@ internal class TakeProfitOrLoss : IBot
         OrderType preferedOrderType = OrderType.Limit;
         TimeInForce timeInForce = TimeInForce.Gtc;
         bool extendedHours = false;
-        if (QtyToBuy * price < buyingPower)
-            calculatedQty = QtyToBuy;
-        else
-            (calculatedQty, preferedOrderType, timeInForce, extendedHours) = await CalculateQuantity(assetClass, buyingPower, price, preferedOrderType);
-        if (calculatedQty == 0)
-            return updatedStock;
 
         if (symbol != null)
         {
             if (!lastTradeOpen)
             {
+                //calculate quantity to buy
+                if (QtyToBuy * price < buyingPower)
+                    calculatedQty = QtyToBuy;
+                else
+                    (calculatedQty, preferedOrderType, timeInForce, extendedHours) = await CalculateQuantity(assetClass, buyingPower, price, preferedOrderType);
+                if (calculatedQty == 0)
+                    return updatedStock;
+
                 if (calculatedQty > 0 && position == 0)
                 {
                     (IOrder? order, string? message) = await Broker.SubmitBracketOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,

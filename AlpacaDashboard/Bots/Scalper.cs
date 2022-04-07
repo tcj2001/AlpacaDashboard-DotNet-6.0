@@ -239,17 +239,19 @@ internal class Scalper : IBot
         OrderType preferedOrderType = OrderType.Market;
         TimeInForce timeInForce = TimeInForce.Gtc;
         bool extendedHours = false;
-        if (QtyToBuy * askPrice < buyingPower)
-            calculatedQty = QtyToBuy;
-        else
-            (calculatedQty, preferedOrderType, timeInForce, extendedHours) = await CalculateQuantity(assetClass, buyingPower, askPrice, preferedOrderType);
-        if (calculatedQty == 0)
-            return updatedStock;
 
         if (symbol != null)
         {
             if (!lastTradeOpen)
             {
+                //Calculate qty to buy
+                if (QtyToBuy * askPrice < buyingPower)
+                    calculatedQty = QtyToBuy;
+                else
+                    (calculatedQty, preferedOrderType, timeInForce, extendedHours) = await CalculateQuantity(assetClass, buyingPower, askPrice, preferedOrderType);
+                if (calculatedQty == 0)
+                    return updatedStock;
+
                 if (position == 0)
                 {
                     (IOrder? order, string? message) = await Broker.SubmitOrder(GetType().ToString(), OrderSide.Buy, preferedOrderType, timeInForce, extendedHours,
