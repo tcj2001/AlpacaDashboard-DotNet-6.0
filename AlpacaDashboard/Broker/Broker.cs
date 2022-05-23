@@ -284,7 +284,7 @@ public class Broker : IDisposable
     {
         try
         {
-            return await AlpacaTradingClient.DeleteOrderAsync(orderId, token).ConfigureAwait(false);
+            return await AlpacaTradingClient.CancelOrderAsync(orderId, token).ConfigureAwait(false);
         }
         catch(Exception ex)
         {
@@ -326,7 +326,7 @@ public class Broker : IDisposable
 
         foreach (var order in orders)
         {
-            await AlpacaTradingClient.DeleteOrderAsync(order.OrderId, token).ConfigureAwait(false);
+            await AlpacaTradingClient.CancelOrderAsync(order.OrderId, token).ConfigureAwait(false);
         }
     }
 
@@ -614,7 +614,8 @@ public class Broker : IDisposable
             }
             if (asset.Class == AssetClass.UsEquity)
             {
-                return await AlpacaDataClient.GetLatestTradeAsync(symbol, token).ConfigureAwait(false);
+                var lmdr = new LatestMarketDataRequest(symbol);
+                return await AlpacaDataClient.GetLatestTradeAsync(lmdr, token).ConfigureAwait(false);
             }
         }
         catch { }
@@ -637,12 +638,12 @@ public class Broker : IDisposable
             if (asset.Class == AssetClass.Crypto)
             {
                 var ldr = new LatestDataRequest(symbol, SelectedCryptoExchange);
-
                 return await AlpacaCryptoDataClient.GetLatestQuoteAsync(ldr, token).ConfigureAwait(false);
             }
             if (asset.Class == AssetClass.UsEquity)
             {
-                return await AlpacaDataClient.GetLatestQuoteAsync(symbol, token).ConfigureAwait(false);
+                var lmdr = new LatestMarketDataRequest(symbol);
+                return await AlpacaDataClient.GetLatestQuoteAsync(lmdr, token).ConfigureAwait(false);
             }
         }
         catch { }
@@ -656,13 +657,12 @@ public class Broker : IDisposable
 
         if (asset.Class == AssetClass.UsEquity)
         {
-            return await AlpacaDataClient.GetSnapshotAsync(asset.Symbol, token).ConfigureAwait(false);
+            var lmdr = new LatestMarketDataRequest(symbol);
+            return await AlpacaDataClient.GetSnapshotAsync(lmdr, token).ConfigureAwait(false);
         }
         if (asset.Class == AssetClass.Crypto)
         {
-            //var ieal = asset.Symbol.ToList();
             var sdr = new SnapshotDataRequest(asset.Symbol, SelectedCryptoExchange);
-
             return await AlpacaCryptoDataClient.GetSnapshotAsync(sdr, token).ConfigureAwait(false);
         }
 
@@ -1570,7 +1570,8 @@ public class Broker : IDisposable
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
             var assetSubset = assets.Where(x => x != null && x.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime).Select(x => x != null ? x.Symbol : string.Empty);
-            var stockSnapshots = await AlpacaDataClient.ListSnapshotsAsync(assetSubset, token).ConfigureAwait(false);
+            var lmdr = new LatestMarketDataListRequest(assetSubset);
+            var stockSnapshots = await AlpacaDataClient.ListSnapshotsAsync(lmdr, token).ConfigureAwait(false);
 
             foreach (var item in stockSnapshots)
             {
@@ -1616,7 +1617,8 @@ public class Broker : IDisposable
         for (int i = 0; i < assets.Where(x => x?.Class == AssetClass.UsEquity).Count(); i += maxAssetsAtOneTime)
         {
             var assetSubset = assets.Where(x => x?.Class == AssetClass.UsEquity).Skip(i).Take(maxAssetsAtOneTime).Select(x => x != null ? x.Symbol : string.Empty);
-            var stockTrades = await AlpacaDataClient.ListLatestTradesAsync(assetSubset, token).ConfigureAwait(false);
+            var lmdr = new LatestMarketDataListRequest(assetSubset);
+            var stockTrades = await AlpacaDataClient.ListLatestTradesAsync(lmdr, token).ConfigureAwait(false);
 
             foreach (var item in stockTrades)
             {

@@ -33,12 +33,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Alpaca.Markets" Version="5.2.15" />
-    <PackageReference Include="Alpaca.Markets.Extensions" Version="5.2.7" />
+    <PackageReference Include="Alpaca.Markets" Version="5.3.2" />
+    <PackageReference Include="Alpaca.Markets.Extensions" Version="5.3.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
-    <PackageReference Include="OoplesFinance.StockIndicators" Version="1.0.42" />
+    <PackageReference Include="OoplesFinance.StockIndicators" Version="1.0.44" />
     <PackageReference Include="Serilog.AspNetCore" Version="5.0.0" />
-    <PackageReference Include="Serilog.Expressions" Version="3.3.0" />
+    <PackageReference Include="Serilog.Expressions" Version="3.4.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="3.3.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
