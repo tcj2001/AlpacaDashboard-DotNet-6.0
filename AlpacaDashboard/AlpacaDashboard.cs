@@ -103,17 +103,34 @@ public partial class AlpacaDashboard : Form
         var tn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone).ToString();
         _logger.LogInformation("AlpacaDashboard {0} at {1}", "Started", tn);
 
+
+
         //live
-        LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, _connections, token);
-        LivePfolioEnableEvents();
-        await LiveBroker.Connect();
-        await LiveBroker.PositionAndOpenOrderAssets();
+        if (_liveKey.Value.API_KEY == "." || _liveKey.Value.API_SECRET == ".") {
+            checkBoxLivePaper.Checked = false;
+            checkBoxLivePaper.Visible = false;
+        }
+        else
+        {
+            LiveBroker = new Broker(_liveKey.Value.API_KEY, _liveKey.Value.API_SECRET, TradingEnvironment.Live, _mySettings, _logger, _connections, token);
+            LivePfolioEnableEvents();
+            await LiveBroker.Connect();
+            await LiveBroker.PositionAndOpenOrderAssets();
+        }
 
         //paper
-        PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, _connections, token);
-        PaperPfolioEnableEvents();
-        await PaperBroker.Connect();
-        await PaperBroker.PositionAndOpenOrderAssets();
+        if (_paperKey.Value.API_KEY == "." || _paperKey.Value.API_SECRET == ".")
+        {
+            checkBoxLivePaper.Checked = true;
+            checkBoxLivePaper.Visible = false;
+        }
+        else
+        {
+            PaperBroker = new Broker(_paperKey.Value.API_KEY, _paperKey.Value.API_SECRET, TradingEnvironment.Paper, _mySettings, _logger, _connections, token);
+            PaperPfolioEnableEvents();
+            await PaperBroker.Connect();
+            await PaperBroker.PositionAndOpenOrderAssets();
+        }
 
         #region bots auto generated control and events
         //add bot tabs for defined bot classes
@@ -126,23 +143,29 @@ public partial class AlpacaDashboard : Form
 
             //get or create  watchlist in both environment
             IWatchList? wlLive = null;
-            try
+            if (_liveKey.Value.API_KEY != "." && _liveKey.Value.API_SECRET != ".")
             {
-                wlLive = await LiveBroker.GetWatchList(_type.Name);
-            }
-            catch (Exception)
-            {
-                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                try
+                {
+                    wlLive = await LiveBroker.GetWatchList(_type.Name);
+                }
+                catch (Exception)
+                {
+                    wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                }
             }
 
             IWatchList? wlPaper = null;
-            try
+            if (_paperKey.Value.API_KEY != "." && _paperKey.Value.API_SECRET != ".") 
             {
-                wlPaper = await PaperBroker.GetWatchList(_type.Name);
-            }
-            catch (Exception)
-            {
-                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                try
+                {
+                    wlPaper = await PaperBroker.GetWatchList(_type.Name);
+                }
+                catch (Exception)
+                {
+                    wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                }
             }
 
             //add control dynamically to the scanner page
@@ -172,7 +195,7 @@ public partial class AlpacaDashboard : Form
             //live instance
             instance = (IBot?)Activator.CreateInstance(_type, new object[] { LiveBroker });
 
-            if (instance != null)
+            if (instance != null && wlLive != null)
             {
                 instance.BotListUpdated += Instance_BotListUpdated;
                 instance.UiContainer = splitContainer;
@@ -191,7 +214,7 @@ public partial class AlpacaDashboard : Form
             //paper instance
             instance = (IBot?)Activator.CreateInstance(_type, new object[] { PaperBroker });
 
-            if (instance != null)
+            if (instance != null && wlPaper != null)
             {
                 instance.BotListUpdated += Instance_BotListUpdated;
                 instance.UiContainer = splitContainer;
@@ -296,23 +319,29 @@ public partial class AlpacaDashboard : Form
 
             //get or create  watchlist in both environment
             IWatchList? wlLive = null;
-            try
+            if (_liveKey.Value.API_KEY != "." && _liveKey.Value.API_SECRET != ".")
             {
-                wlLive = await LiveBroker.GetWatchList(_type.Name);
-            }
-            catch (Exception)
-            {
-                wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                try
+                {
+                    wlLive = await LiveBroker.GetWatchList(_type.Name);
+                }
+                catch (Exception)
+                {
+                    wlLive = await LiveBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                }
             }
 
             IWatchList? wlPaper = null;
-            try
+            if (_paperKey.Value.API_KEY != "." && _paperKey.Value.API_SECRET != ".")
             {
-                wlPaper = await PaperBroker.GetWatchList(_type.Name);
-            }
-            catch (Exception)
-            {
-                wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                try
+                {
+                    wlPaper = await PaperBroker.GetWatchList(_type.Name);
+                }
+                catch (Exception)
+                {
+                    wlPaper = await PaperBroker.CreateWatchList(_type.Name, Array.Empty<string>());
+                }
             }
 
             //add control dynamically to the scanner page
@@ -342,7 +371,7 @@ public partial class AlpacaDashboard : Form
             //live instance
             instance = (IScanner?)Activator.CreateInstance(_type, new object[] { LiveBroker });
 
-            if (instance != null)
+            if (instance != null && wlLive != null)
             {
                 instance.ScannerListUpdated += Instance_ScannerListUpdated;
                 instance.UiContainer = splitContainer;
@@ -361,7 +390,7 @@ public partial class AlpacaDashboard : Form
             //paper instance
             instance = (IScanner?)Activator.CreateInstance(_type, new object[] { PaperBroker });
 
-            if (instance != null)
+            if (instance != null && wlPaper != null)
             {
                 instance.ScannerListUpdated += Instance_ScannerListUpdated;
                 instance.UiContainer = splitContainer;
@@ -440,15 +469,22 @@ public partial class AlpacaDashboard : Form
             tableLayoutPanel.Controls.Add(btn);
             btn.Click += ScanButton_Click;
         }
+
         LoadScannerDetails(Environment);
 
         #endregion
 
         //update environment
-        if (Environment == TradingEnvironment.Paper)
-            await PaperBroker.UpdateEnviromentData();
-        if (Environment == TradingEnvironment.Live)
-            await LiveBroker.UpdateEnviromentData();
+        if (_liveKey.Value.API_KEY != "." && _liveKey.Value.API_SECRET != ".")
+        {
+            if (Environment == TradingEnvironment.Paper)
+                await PaperBroker.UpdateEnviromentData();
+        }
+        if (_liveKey.Value.API_KEY != "." && _liveKey.Value.API_SECRET != ".")
+        {
+            if (Environment == TradingEnvironment.Live)
+                await LiveBroker.UpdateEnviromentData();
+        }
 
         //Status all connected
         labelMessages.Text = "Dashboard Ready";
@@ -458,8 +494,14 @@ public partial class AlpacaDashboard : Form
         {
             while (!token.IsCancellationRequested)
             {
-                await PaperBroker.GenerateEvents().ConfigureAwait(false);
-                await LiveBroker.GenerateEvents().ConfigureAwait(false);
+                if (_paperKey.Value.API_KEY != "." && _paperKey.Value.API_SECRET != ".")
+                {
+                    await PaperBroker.GenerateEvents().ConfigureAwait(false);
+                }
+                if (_liveKey.Value.API_KEY != "." && _liveKey.Value.API_SECRET != ".")
+                {
+                    await LiveBroker.GenerateEvents().ConfigureAwait(false);
+                }
 
                 await Task.Delay(TimeSpan.FromSeconds(_mySettings.Value.PriceUpdateInterval), token).ConfigureAwait(false);
             }
@@ -1232,17 +1274,26 @@ public partial class AlpacaDashboard : Form
     {
         if (((CheckBox)sender).Checked)
         {
-            Environment = TradingEnvironment.Live;
-            await LiveBroker.UpdateEnviromentData();
+            if (_liveKey.Value.API_KEY != "." && _liveKey.Value.API_SECRET != ".")
+            {
+                Environment = TradingEnvironment.Live;
+                await LiveBroker.UpdateEnviromentData();
+            }
         }
         else
         {
-            Environment = TradingEnvironment.Paper;
-            await PaperBroker.UpdateEnviromentData();
+            if (_paperKey.Value.API_KEY != "." && _paperKey.Value.API_SECRET != ".")
+            {
+                Environment = TradingEnvironment.Paper;
+                await PaperBroker.UpdateEnviromentData();
+            }
         }
 
-        LoadScannerDetails(Environment);
-        LoadBotDetails(Environment);
+        if (_paperKey.Value.API_KEY != "." && _paperKey.Value.API_SECRET != "." && _liveKey.Value.API_KEY != "." && _liveKey.Value.API_SECRET != ".")
+        {
+            LoadScannerDetails(Environment);
+            LoadBotDetails(Environment);
+        }
     }
 
     #endregion
