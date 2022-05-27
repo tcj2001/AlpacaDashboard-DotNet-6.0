@@ -61,13 +61,13 @@ internal class Momentum : IScanner
     private decimal _minVolume = 1000000;
     public decimal MinVolume { get => _minVolume; set => _minVolume = value; }
 
-    //SMA Slow length
-    private int _SmaSlowLength = 20;
-    public int SmaSlowLength { get => _SmaSlowLength; set => _SmaSlowLength = value; }
+    //SMA length
+    private int _SmaLength = 20;
+    public int SmaLength { get => _SmaLength; set => _SmaLength = value; }
 
-    //SMA Fast length
-    private int _SmaFastLength = 9;
-    public int SmaFastLength { get => _SmaFastLength; set => _SmaFastLength = value; }
+    //Top N symbols
+    private int _TopNSymbols = 10;
+    public int TopNSymbols { get => _TopNSymbols; set => _TopNSymbols = value; }
     
     //Refresh Scanner interval
     private int _refreshInterval = 5;
@@ -137,10 +137,10 @@ internal class Momentum : IScanner
         //for those selected symbol's Assets
         IEnumerable<IAsset> assetLists = selectedAssetandSnapShot.Select(x => x.Key).ToList();
         //get a list of stock with its historical bars, process all symbols but in chuck of 5000 symbols at a time
-        var ListOfSlowAssetAndItsBars = await Broker.ListHistoricalBars(assetLists, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), SmaSlowLength, 5000, easternTime);
+        var ListOfSlowAssetAndItsBars = await Broker.ListHistoricalBars(assetLists, new BarTimeFrame(BarTimeFrameCount, BarTimeFrameUnit), SmaLength, 5000, easternTime);
 
         //list to hold selected assets
-        List<IAsset> assetLists2 = new();
+        Dictionary<IAsset,decimal> assetDict = new();
         foreach (var bars in ListOfSlowAssetAndItsBars)
         {
             //add logic to use ooplesFinance package and its indicator to filter symbols fitting the indicator criteria
@@ -149,28 +149,42 @@ internal class Momentum : IScanner
                 bars.Value.Select(x => x.Low), bars.Value.Select(x => x.Close),
                 bars.Value.Select(x => x.Volume), bars.Value.Select(x => x.TimeUtc)
             );
-            var slowResult = new List<decimal>(stockData.CalculateSimpleMovingAverage(SmaSlowLength).CustomValuesList);
-            var fastResult = new List<decimal>(stockData.CalculateSimpleMovingAverage(SmaFastLength).CustomValuesList);
-
-            //if fast sma  > slow sma price
-            if (fastResult.Last() > slowResult.Last())
-            {
-                assetLists2.Add(bars.Key);
+            var result = new List<decimal>(stockData.CalculateSimpleMovingAverage(SmaLength).CustomValuesList);
+            if (result.Count() >= 2) {
+                var percChange = CalculateChange(result.SkipLast(1).Last(), result.Last());
+                assetDict.Add(bars.Key, percChange);
             }
         }
+        var sortedDictofNItem = assetDict.OrderByDescending(x => x.Value).Take(TopNSymbols);
+        var assetLists2 = sortedDictofNItem.Select(x => x.Key);
 
         //subscribe all selected symbols
         await Broker.Subscribe(assetLists2, 5000, "Scanner").ConfigureAwait(false);
 
         //get snapshot again for the above selected assets
-        var symbolAndSnapshots2 = await Broker.ListSnapShots(assetLists2, 5000).ConfigureAwait(false);
+        var AssetAndSnapshotsx = await Broker.ListSnapShots(assetLists2, 5000).ConfigureAwait(false);
+        //sort it back based on percentage change of assetLists2
+        Dictionary<IAsset, ISnapshot?> AssetAndSnapshots2 = new();
+        assetLists2.ToList().ForEach(s =>
+        {
+            if (AssetAndSnapshotsx.ContainsKey(s))
+                AssetAndSnapshots2.Add(s, AssetAndSnapshotsx[s]);
+        });
 
         //symbol and snapshot list as passed by the generated event to load listview
-        ListOfAssetAndSnapshot = symbolAndSnapshots2;
         ScannerListUpdatedEventArgs opuea = new()
         {
-            ListOfAssetAndSnapshot = ListOfAssetAndSnapshot
+            ListOfAssetAndSnapshot = AssetAndSnapshots2
         };
         OnListUpdated(opuea);
+    }
+
+    decimal CalculateChange(decimal previous, decimal current)
+    {
+        if (previous == 0)
+            throw new InvalidOperationException();
+
+        var change = current - previous;
+        return change / previous;
     }
 }
